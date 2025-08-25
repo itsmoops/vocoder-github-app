@@ -100,6 +100,12 @@ export function createDebugMiddleware(webhookHandler) {
                   return { data: { number: 999, html_url: 'https://github.com/test/pr/999' } }
                 }
               },
+              git: {
+                getRef: async (params) => {
+                  logger.info('Mock git getRef', params)
+                  return { data: { object: { sha: 'mock-base-sha' } } }
+                }
+              },
               issues: {
                 createComment: async (params) => {
                   logger.info('Mock comment creation', params)
