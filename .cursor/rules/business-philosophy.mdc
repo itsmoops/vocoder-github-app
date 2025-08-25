@@ -1,0 +1,25 @@
+---
+alwaysApply: false
+---
+
+# Business Philosophy
+
+## Serve Solo Devs and Small Teams
+
+- Optimize for speed and clarity — these users do not have time to read dense docs or deal with enterprise overhead.
+- Pricing must be transparent and affordable, with generous free tiers.
+
+## Not Built to be a Unicorn
+
+- This is not a VC-fueled rocketship; it is a sustainable, product-focused business.
+- We care more about customer satisfaction than ARR growth charts.
+
+## Open by Default
+
+- Source code for core SDKs should be public.
+- Prioritize integrations with other open tools — avoid vendor lock-in.
+
+## Ethical AI
+
+- Translation should respect context, privacy, and user intent.
+- No user-submitted data should be used to train models without explicit consent.# Business Philosophy

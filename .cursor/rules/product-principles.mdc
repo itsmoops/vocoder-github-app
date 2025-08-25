@@ -1,0 +1,69 @@
+---
+alwaysApply: true
+---
+
+# Product Principles
+
+## Simplicity First
+
+- All developer-facing features must prioritize ease of setup and minimal configuration.
+- No required build steps unless absolutely necessary.
+- Defaults should "just work" — configuration is optional, not mandatory.
+
+## Developer-Centric UX
+
+- The developer experience should be as smooth as working with tools like Vite, Next.js, or Tailwind.
+- Provide clear CLI feedback, zero-conf onboarding, and intuitive API design.
+
+## Clear Source of Truth
+
+- All localization data should be derived from a single, human-readable source strings file.
+- Support multiple formats (JSON, flat list) but always keep structure explicit and accessible.
+
+## Language Intelligence
+
+- Use DeepL for automatic language detection and translation.
+- If source language is ambiguous or omitted, the system should make intelligent guesses.
+- Avoid manual language selection where possible.
+
+## Multi-Tenant, Multi-Project by Design
+
+- Must support multiple organizations and multiple projects out of the box.
+- Each project is sandboxed but can inherit org-level settings.
+
+## Reliable Hosting
+
+- API availability is critical — the hosted platform must gracefully handle scale and retries.
+- All reads should be cacheable, and all writes should queue intelligently.# Product Principles
+
+## Simplicity First
+
+- All developer-facing features must prioritize ease of setup and minimal configuration.
+- No required build steps unless absolutely necessary.
+- Defaults should "just work" — configuration is optional, not mandatory.
+
+## Developer-Centric UX
+
+- The developer experience should be as smooth as working with tools like Vite, Next.js, or Tailwind.
+- Provide clear CLI feedback, zero-conf onboarding, and intuitive API design.
+
+## Clear Source of Truth
+
+- All localization data should be derived from a single, human-readable source strings file.
+- Support multiple formats (JSON, flat list) but always keep structure explicit and accessible.
+
+## Language Intelligence
+
+- Use DeepL for automatic language detection and translation.
+- If source language is ambiguous or omitted, the system should make intelligent guesses.
+- Avoid manual language selection where possible.
+
+## Multi-Tenant, Multi-Project by Design
+
+- Must support multiple organizations and multiple projects out of the box.
+- Each project is sandboxed but can inherit org-level settings.
+
+## Reliable Hosting
+
+- API availability is critical — the hosted platform must gracefully handle scale and retries.
+- All reads should be cacheable, and all writes should queue intelligently.

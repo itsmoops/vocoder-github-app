@@ -1,0 +1,31 @@
+# Design System
+
+## Color Tokens
+- Primary: #FF5A5F (Vocoder Red)
+- Secondary: #FFE66D (Signal Yellow)
+- Accent: #32A8A0 (Wave Teal)
+- Background: #0F0F0F (Dark Mode Default)
+- Surface: #1C1C1C (Panels & Cards)
+- On-Primary: #FFFFFF
+
+## Typography
+- Heading Font: "Space Grotesk", sans-serif
+- Body Font: "Inter", sans-serif
+
+## Components
+- Buttons: Rounded full, bold text, large tap targets
+- Cards: 2xl rounded corners, soft drop shadow
+- Inputs: Subtle outlines, clear focus state
+- Tabs: Underline-style indicator, animated
+
+## Layout
+- Grid-based layout
+- Responsive down to mobile
+- Adequate padding: at least p-2, default to p-4 for cards
+
+## Tailwind Patterns
+- Use `text-balance` for large text blocks
+- `rounded-2xl` for cards, `rounded-full` for avatars or key UI
+- `shadow-md` or `shadow-lg` for elevation
+- `transition-all` and `duration-200` on interactive components
+- Dark mode is default — optimize color contrast

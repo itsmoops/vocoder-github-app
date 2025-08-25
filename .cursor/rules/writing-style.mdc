@@ -1,0 +1,77 @@
+---
+alwaysApply: false
+---
+
+# Writing Style Guide
+
+## Voice
+
+- Friendly but not overly casual
+- Clear, direct, and confident
+- No jargon or filler — get to the point
+- Prioritize clarity over cleverness
+
+## Tone
+
+- Professional but developer-friendly
+- Supportive and encouraging
+- Never salesy — explain value, don’t hype
+
+## Documentation
+
+- Use present tense and active voice
+- Code comes first — explain with examples
+- Prefer bullets and short paragraphs
+
+## CLI Output / Logs
+
+- Use clear, lowercase instructions:
+  - ✅ good: `uploading source strings...`
+  - 🚫 bad: `Now beginning process to Upload Source Files...`
+- Include helpful tips when things go wrong
+
+## Onboarding / UI Copy
+
+- Assume the user is smart and busy
+- “You” is preferred over passive phrasing
+- Use verbs:
+  - `Add a source file`
+  - `Connect your repo`
+  - `Choose your base language`
+
+# Writing Style Guide
+
+## Voice
+
+- Friendly but not overly casual
+- Clear, direct, and confident
+- No jargon or filler — get to the point
+- Prioritize clarity over cleverness
+
+## Tone
+
+- Professional but developer-friendly
+- Supportive and encouraging
+- Never salesy — explain value, don’t hype
+
+## Documentation
+
+- Use present tense and active voice
+- Code comes first — explain with examples
+- Prefer bullets and short paragraphs
+
+## CLI Output / Logs
+
+- Use clear, lowercase instructions:
+  - ✅ good: `uploading source strings...`
+  - 🚫 bad: `Now beginning process to Upload Source Files...`
+- Include helpful tips when things go wrong
+
+## Onboarding / UI Copy
+
+- Assume the user is smart and busy
+- “You” is preferred over passive phrasing
+- Use verbs:
+  - `Add a source file`
+  - `Connect your repo`
+  - `Choose your base language`

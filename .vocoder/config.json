@@ -1,0 +1,13 @@
+{
+  "targetBranches": ["main", "develop"],
+  "sourceFiles": [
+    "src/locales/en.json",
+    "locales/en.json",
+    "i18n/en.json"
+  ],
+  "projectApiKey": "your-project-api-key-here",
+  "outputDir": "src/locales",
+  "languages": ["es", "fr", "de"],
+  "createPRs": true,
+  "translationBranch": "vocoder-translations"
+} 
