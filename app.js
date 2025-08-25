@@ -92,6 +92,11 @@ app.webhooks.on('push', async ({ octokit, payload }) => {
 // Handle new installations
 app.webhooks.on('installation.created', async ({ octokit, payload }) => {
   logger.logWebhook('installation', 'created', payload)
+  logger.info('Installation webhook received', {
+    action: payload.action,
+    installationId: payload.installation.id,
+    repositories: payload.repositories?.map(r => r.full_name) || []
+  })
   await setupNewInstallation(octokit, payload)
 })
 
@@ -240,10 +245,22 @@ async function setupNewInstallation(octokit, payload) {
   const { repositories } = payload
   const installLogger = new Logger('Installation')
   
+  installLogger.info(`Setting up new installation for ${repositories.length} repositories`)
+  
   for (const repo of repositories) {
     try {
       installLogger.info(`Setting up new installation for ${repo.full_name}`)
       const configManager = new ConfigManager(octokit, repo.owner.login, repo.name)
+      
+      installLogger.info(`Checking if config already exists for ${repo.full_name}`)
+      const existingConfig = await configManager.getConfig()
+      
+      if (existingConfig) {
+        installLogger.info(`Config already exists for ${repo.full_name}, skipping creation`)
+        continue
+      }
+      
+      installLogger.info(`No config found, creating default config for ${repo.full_name}`)
       await configManager.createDefaultConfig()
       installLogger.success(`Created default config for ${repo.full_name}`)
     } catch (error) {
