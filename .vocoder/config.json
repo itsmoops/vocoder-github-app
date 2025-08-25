@@ -7,7 +7,5 @@
   ],
   "projectApiKey": "your-project-api-key-here",
   "outputDir": "src/locales",
-  "languages": ["es", "fr", "de"],
-  "createPRs": true,
-  "translationBranch": "vocoder-translations"
+  "languages": ["es", "fr", "de"]
 } 

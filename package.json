@@ -12,6 +12,7 @@
     "standard": "^17.0.0"
   },
   "dependencies": {
+    "deep-object-diff": "^1.1.9",
     "dotenv": "^16.0.3",
     "node-fetch": "^3.3.2",
     "nodemon": "^3.1.10",

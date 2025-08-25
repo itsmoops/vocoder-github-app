@@ -9,26 +9,33 @@ import dotenv from 'dotenv'
 import fs from 'fs'
 import http from 'http'
 
-// Load environment variables from .env file
+// Load environment variables
 dotenv.config()
 
-// Set configured values
+// Initialize logger
+const logger = new Logger('MainApp')
+
+// Validate required environment variables
+const requiredEnvVars = ['APP_ID', 'PRIVATE_KEY_PATH', 'WEBHOOK_SECRET']
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    logger.error(`Missing required environment variable: ${envVar}`)
+    process.exit(1)
+  }
+}
+
+// Load GitHub App credentials
 const appId = process.env.APP_ID
 const privateKeyPath = process.env.PRIVATE_KEY_PATH
 const privateKey = fs.readFileSync(privateKeyPath, 'utf8')
-const secret = process.env.WEBHOOK_SECRET
+const webhookSecret = process.env.WEBHOOK_SECRET
 const enterpriseHostname = process.env.ENTERPRISE_HOSTNAME
 
-// Create logger instance
-const logger = new Logger('MainApp')
-
-// Create an authenticated Octokit client authenticated as a GitHub App
+// Create GitHub App instance
 const app = new App({
   appId,
   privateKey,
-  webhooks: {
-    secret
-  },
+  webhooks: { secret: webhookSecret },
   ...(enterpriseHostname && {
     Octokit: Octokit.defaults({
       baseUrl: `https://${enterpriseHostname}/api/v3`
@@ -36,7 +43,7 @@ const app = new App({
   })
 })
 
-// Configure Octokit logging to work with our custom logger
+// Configure Octokit logging
 if (process.env.DEBUG === 'true') {
   app.octokit.log.debug = (message, ...args) => {
     logger.debug(`[Octokit] ${message}`, args.length > 0 ? args : null)
@@ -52,154 +59,180 @@ if (process.env.DEBUG === 'true') {
   }
 }
 
-// Optional: Get & log the authenticated app's name
+// Log app authentication
 const { data } = await app.octokit.request('/app')
-
-// Read more about custom logging: https://github.com/octokit/core.js#logging
 logger.success(`GitHub App authenticated as '${data.name}'`)
 
-// Handle pull request events
+// ============================================================================
+// WEBHOOK EVENT HANDLERS
+// ============================================================================
+
+// Handle pull request events (opened, updated, synchronized)
 app.webhooks.on('pull_request.opened', async ({ octokit, payload }) => {
   logger.logWebhook('pull_request', 'opened', payload)
-  await handleLocalizationEvent(octokit, payload, 'pull_request')
+  await handlePullRequestEvent(octokit, payload, 'opened')
 })
 
 app.webhooks.on('pull_request.synchronize', async ({ octokit, payload }) => {
   logger.logWebhook('pull_request', 'synchronize', payload)
-  await handleLocalizationEvent(octokit, payload, 'pull_request')
+  await handlePullRequestEvent(octokit, payload, 'synchronize')
 })
 
-// Handle push events
+app.webhooks.on('pull_request.reopened', async ({ octokit, payload }) => {
+  logger.logWebhook('pull_request', 'reopened', payload)
+  await handlePullRequestEvent(octokit, payload, 'reopened')
+})
+
+// Handle push events to target branches (for base branch changes)
 app.webhooks.on('push', async ({ octokit, payload }) => {
   logger.logWebhook('push', 'push', payload)
-  await handleLocalizationEvent(octokit, payload, 'push')
+  await handlePushEvent(octokit, payload)
 })
 
-// Handle repository installation
+// Handle new installations
 app.webhooks.on('installation.created', async ({ octokit, payload }) => {
   logger.logWebhook('installation', 'created', payload)
   await setupNewInstallation(octokit, payload)
 })
 
-async function handleLocalizationEvent(octokit, payload, eventType) {
-  const { repository, pull_request, ref } = payload
+// ============================================================================
+// CORE EVENT PROCESSING
+// ============================================================================
+
+async function handlePullRequestEvent(octokit, payload, action) {
+  const { repository, pull_request } = payload
   const owner = repository.owner.login
   const repo = repository.name
+  const prNumber = pull_request.number
   
-  const eventLogger = new Logger(`Event:${eventType}`)
-  const timer = eventLogger.time(`Processing ${eventType} event`)
-  
-  // Declare variables outside try block to avoid scope issues
-  let targetBranch, sourceRef
+  const eventLogger = new Logger(`PR:${action}`)
+  const timer = eventLogger.time(`Processing PR #${prNumber} ${action}`)
   
   try {
-    eventLogger.info(`Processing localization event for ${owner}/${repo}`)
+    eventLogger.info(`Processing PR #${prNumber} ${action} for ${owner}/${repo}`)
     
-    // Get configuration for this repository
+    // Get repository configuration
     const configManager = new ConfigManager(octokit, owner, repo)
     const config = await configManager.getConfig()
+    
+    if (!config) {
+      eventLogger.warn('No configuration found, skipping localization processing')
+      return
+    }
+    
     eventLogger.logConfig(config)
     
-    // Determine the branch to process
-    if (eventType === 'pull_request') {
-      targetBranch = pull_request.base.ref
-      sourceRef = pull_request.head.sha
-    } else if (eventType === 'push') {
-      targetBranch = ref.replace('refs/heads/', '')
-      sourceRef = payload.after
-    }
-    
-    eventLogger.info(`Processing branch: ${targetBranch}, source ref: ${sourceRef}`)
-    
-    // Check if this branch should be processed
+    // Check if this PR targets a monitored branch
+    const targetBranch = pull_request.base.ref
     if (!config.targetBranches.includes(targetBranch)) {
-      eventLogger.info(`Branch ${targetBranch} not in target branches: ${config.targetBranches.join(', ')}`)
+      eventLogger.info(`PR targets branch '${targetBranch}' which is not monitored. Monitored branches: ${config.targetBranches.join(', ')}`)
       return
     }
     
-    eventLogger.info(`Branch ${targetBranch} is a target branch, proceeding with localization`)
+    eventLogger.info(`PR targets monitored branch '${targetBranch}', proceeding with localization`)
     
-    // Process localization
-    const processor = new LocalizationProcessor(octokit, owner, repo)
+    // Set status check to pending
+    await setStatusCheck(octokit, owner, repo, pull_request.head.sha, 'pending', 'Localization processing in progress...')
     
-    // Find and read source file
-    const sourceFile = await processor.findSourceFile(config.sourceFiles, sourceRef)
-    if (!sourceFile) {
-      eventLogger.warn('No source localization file found')
-      return
+    // Process localization changes
+    const processor = new LocalizationProcessor(octokit, owner, repo, config)
+    const result = await processor.processPullRequest(pull_request, config)
+    
+    if (result.success) {
+      // Set status check to success
+      await setStatusCheck(octokit, owner, repo, pull_request.head.sha, 'success', 
+        `Localization complete: ${result.changesProcessed} changes processed`)
+      
+      eventLogger.success(`Localization processing completed successfully`, {
+        changesProcessed: result.changesProcessed,
+        languagesUpdated: result.languagesUpdated
+      })
+    } else {
+      // Set status check to failure
+      await setStatusCheck(octokit, owner, repo, pull_request.head.sha, 'failure', 
+        `Localization failed: ${result.error}`)
+      
+      eventLogger.error(`Localization processing failed`, result.error)
     }
     
-    eventLogger.success(`Found source file: ${sourceFile.path}`, {
-      stringCount: Object.keys(sourceFile.content).length
-    })
-    
-    // Mock translation API call
-    const translationTimer = eventLogger.time('Translation API call')
-    const translations = await processor.mockTranslateStrings(
-      sourceFile.content,
-      config.projectApiKey,
-      config.languages
-    )
-    translationTimer.end()
-    
-    eventLogger.success(`Translation completed for ${Object.keys(translations).length} languages`)
-    
-    if (config.createPRs) {
-      // Create translation branch
-      const translationBranch = config.translationBranch
-      await processor.createOrUpdateBranch(targetBranch, translationBranch)
-      
-      // Create translation files
-      const files = await processor.createTranslationFiles(
-        translations,
-        config.outputDir,
-        translationBranch,
-        targetBranch
-      )
-      
-      // Commit files
-      await processor.commitTranslationFiles(files, translationBranch, 'Add translations')
-      
-      // Create pull request
-      const prTitle = `🌍 Add localization files (${config.languages.join(', ')})`
-      const prBody = `This PR adds localization files for the following languages: ${config.languages.join(', ')}
-      
-Generated from source file: \`${sourceFile.path}\`
-      
-**Languages added:**
-${config.languages.map(lang => `- ${lang}: \`${config.outputDir}/${lang}.json\``).join('\n')}
-      
-*This PR was automatically generated by the Vocoder localization app.*`
-      
-      const pr = await processor.createPullRequest(targetBranch, translationBranch, prTitle, prBody)
-      
-      if (pr && eventType === 'pull_request') {
-        // Comment on the original PR
-        await octokit.rest.issues.createComment({
-          owner,
-          repo,
-          issue_number: pull_request.number,
-          body: `🎉 Localization processing complete! Check out the new translation files in PR #${pr.number}`
-        })
-        eventLogger.success(`Commented on PR #${pull_request.number}`)
-      }
-      
-      eventLogger.success(`Created translation PR #${pr.number}`)
-    }
-    
-    eventLogger.success(`Localization processing completed successfully`)
     timer.end()
     
   } catch (error) {
-    eventLogger.error(`Error processing localization`, error, {
+    eventLogger.error(`Error processing PR #${prNumber}`, error)
+    
+    // Set status check to failure
+    try {
+      await setStatusCheck(octokit, owner, repo, pull_request.head.sha, 'failure', 
+        `Localization error: ${error.message}`)
+    } catch (statusError) {
+      eventLogger.error('Failed to set status check', statusError)
+    }
+  }
+}
+
+async function handlePushEvent(octokit, payload) {
+  const { repository, ref, commits } = payload
+  const owner = repository.owner.login
+  const repo = repository.name
+  const branch = ref.replace('refs/heads/', '')
+  
+  const eventLogger = new Logger('PushEvent')
+  const timer = eventLogger.time(`Processing push to ${branch}`)
+  
+  try {
+    eventLogger.info(`Processing push to branch '${branch}' in ${owner}/${repo}`)
+    
+    // Get repository configuration
+    const configManager = new ConfigManager(octokit, owner, repo)
+    const config = await configManager.getConfig()
+    
+    if (!config || !config.targetBranches.includes(branch)) {
+      eventLogger.info(`Branch '${branch}' not monitored or no config found, skipping`)
+      return
+    }
+    
+    eventLogger.info(`Push to monitored branch '${branch}' detected, checking for open PRs`)
+    
+    // Find open PRs targeting this branch
+    const { data: openPRs } = await octokit.rest.pulls.list({
       owner,
       repo,
-      eventType,
-      targetBranch: targetBranch || 'unknown'
+      state: 'open',
+      base: branch
     })
-    if (error.response) {
-      eventLogger.error(`GitHub API Error: ${error.response.status} - ${error.response.data.message}`)
+    
+    if (openPRs.length === 0) {
+      eventLogger.info('No open PRs targeting this branch')
+      return
     }
+    
+    eventLogger.info(`Found ${openPRs.length} open PR(s) targeting branch '${branch}'`)
+    
+    // Re-process each open PR to handle base branch changes
+    for (const pr of openPRs) {
+      eventLogger.info(`Re-processing PR #${pr.number} due to base branch changes`)
+      
+      try {
+        const processor = new LocalizationProcessor(octokit, owner, repo, config)
+        const result = await processor.processPullRequest(pr, config)
+        
+        if (result.success) {
+          eventLogger.success(`Re-processed PR #${pr.number} successfully`, {
+            changesProcessed: result.changesProcessed,
+            languagesUpdated: result.languagesUpdated
+          })
+        } else {
+          eventLogger.warn(`Re-processing PR #${pr.number} failed`, result.error)
+        }
+      } catch (error) {
+        eventLogger.error(`Error re-processing PR #${pr.number}`, error)
+      }
+    }
+    
+    timer.end()
+    
+  } catch (error) {
+    eventLogger.error(`Error processing push event`, error)
   }
 }
 
@@ -219,27 +252,53 @@ async function setupNewInstallation(octokit, payload) {
   }
 }
 
-// Optional: Handle errors
+// ============================================================================
+// STATUS CHECK MANAGEMENT
+// ============================================================================
+
+async function setStatusCheck(octokit, owner, repo, sha, state, description) {
+  try {
+    await octokit.rest.repos.createCommitStatus({
+      owner,
+      repo,
+      sha,
+      state,
+      description,
+      context: 'Vocoder Localization',
+      target_url: process.env.APP_URL || 'https://github.com/your-org/vocoder'
+    })
+    
+    logger.info(`Set status check to ${state}: ${description}`)
+  } catch (error) {
+    logger.error('Failed to set status check', error)
+  }
+}
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
 app.webhooks.onError((error) => {
   if (error.name === 'AggregateError') {
-    // Log Secret verification errors
     logger.error(`Webhook error processing request: ${error.event}`, error)
   } else {
     logger.error('Webhook error', error)
   }
 })
 
-// Launch a web server to listen for GitHub webhooks
-const port = process.env.PORT || 3010
-const path = '/api/webhook'
-const localWebhookUrl = `http://localhost:${port}${path}`
+// ============================================================================
+// SERVER SETUP
+// ============================================================================
 
-// See https://github.com/octokit/webhooks.js/#createnodemiddleware for all options
-const middleware = createNodeMiddleware(app.webhooks, { path })
+const port = process.env.PORT || 3010
+const webhookPath = '/api/webhook'
+
+// Create webhook middleware
+const middleware = createNodeMiddleware(app.webhooks, { path: webhookPath })
 
 // Create HTTP server with debug endpoints
 const server = http.createServer((req, res) => {
-  // Set CORS headers for debug endpoints
+  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
@@ -261,29 +320,29 @@ const server = http.createServer((req, res) => {
   }
   
   // Handle debug endpoints
-  const debugMiddleware = createDebugMiddleware(handleLocalizationEvent)
+  const debugMiddleware = createDebugMiddleware(handlePullRequestEvent)
   if (debugMiddleware(req, res)) {
     requestHandled = true
     return
   }
   
-  // Handle webhooks (only if request wasn't handled by debug endpoints)
+  // Handle webhooks
   if (!requestHandled) {
     middleware(req, res)
   }
 })
 
-// Function to start server with port fallback
+// Start server with port fallback
 function startServer(portToTry) {
   server.listen(portToTry, () => {
-    logger.success(`Vocoder Localization App is listening for events at: http://localhost:${portToTry}${path}`)
-    logger.info(`Debug endpoints available:`)
-    logger.info(`  - Health check: http://localhost:${portToTry}/health`)
-    logger.info(`  - Test webhook: http://localhost:${portToTry}/debug/test`)
-    logger.info(`Press Ctrl + C to quit.`)
+    logger.success(`Vocoder Localization App listening at http://localhost:${portToTry}${webhookPath}`)
+    logger.info(`Debug endpoints:`)
+    logger.info(`  - Health: http://localhost:${portToTry}/health`)
+    logger.info(`  - Test: http://localhost:${portToTry}/debug/test`)
+    logger.info(`Press Ctrl+C to quit`)
   }).on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      logger.warn(`Port ${portToTry} is busy, trying ${portToTry + 1}`)
+      logger.warn(`Port ${portToTry} busy, trying ${portToTry + 1}`)
       startServer(portToTry + 1)
     } else {
       logger.error('Server error:', err)
@@ -292,5 +351,4 @@ function startServer(portToTry) {
   })
 }
 
-// Start the server
 startServer(port)
