@@ -121,8 +121,11 @@ export function createDebugMiddleware(handlePullRequestEvent) {
       // Simulate the event processing
       logger.info('Processing debug event: pull_request.opened')
       
-      // Call the actual event handler with mock data
-      handlePullRequestEvent(mockOctokit, mockPayload, 'opened')
+      // Create event handler and call with mock data
+      import('./utils/event-handler.js').then(({ EventHandler }) => {
+        const eventHandler = new EventHandler(mockOctokit, 'TestApp');
+        return eventHandler.handlePullRequestEvent(mockPayload, 'opened');
+      })
         .then(() => {
           sendJsonResponse(res, 200, {
             success: true,

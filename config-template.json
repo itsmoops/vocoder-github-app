@@ -1,0 +1,7 @@
+{
+  "targetBranches": ["main", "release-*", "feature/*"],
+  "sourceFiles": ["src/locales/en.json"],
+  "languages": ["es", "fr"],
+  "outputDir": "locales",
+  "projectApiKey": "your-project-api-key-here"
+} 

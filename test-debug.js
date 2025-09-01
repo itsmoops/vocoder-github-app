@@ -5,7 +5,7 @@
  * Tests the health check and webhook simulation endpoints
  */
 
-const BASE_URL = 'http://localhost:3010'
+const BASE_URL = 'http://localhost:3011'
 
 async function testEndpoint(url, options = {}) {
   try {

@@ -1,11 +1,9 @@
 {
-  "targetBranches": ["main", "develop"],
-  "sourceFiles": [
-    "src/locales/en.json",
-    "locales/en.json",
-    "i18n/en.json"
-  ],
-  "projectApiKey": "your-project-api-key-here",
-  "outputDir": "src/locales",
-  "languages": ["es", "fr", "de"]
-} 
+    "outputDir": "locales",
+    "projectApiKey": "<PROJECT_API_KEY>",
+    "sourceFile": "src/locales/en.json",
+    "sourceLocale": "en",
+    "targetBranches": ["main"],
+    "targetLocales": ["fr", "it"]
+  }
+  

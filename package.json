@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "server": "nodemon --inspect app.js",
-    "lint": "standard"
+    "lint": "standard",
+    "ngrok": "ngrok http 3011"
   },
   "devDependencies": {
     "smee-client": "^2.0.1",
@@ -14,6 +15,7 @@
   "dependencies": {
     "deep-object-diff": "^1.1.9",
     "dotenv": "^16.0.3",
+    "flat": "^6.0.1",
     "node-fetch": "^3.3.2",
     "nodemon": "^3.1.10",
     "octokit": "^4.1.1"

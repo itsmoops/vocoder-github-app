@@ -69,7 +69,7 @@ WEBHOOK_SECRET=your_webhook_secret_here
 
 # Optional
 DEBUG=true
-PORT=3010
+PORT=3011
 ENTERPRISE_HOSTNAME=your-enterprise-hostname.com
 ```
 
@@ -107,7 +107,7 @@ npm install
 npm run server
 ```
 
-The app will start on port 3010 (or the next available port).
+The app will start on port 3011 (or the next available port).
 
 ### Production
 
@@ -128,7 +128,7 @@ For development, use [ngrok](https://ngrok.com/) to expose your local server:
 npm install -g ngrok
 
 # Expose your server
-ngrok http 3010
+ngrok http 3011
 
 # Update your GitHub App webhook URL with the ngrok URL
 ```
