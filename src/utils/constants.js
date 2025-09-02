@@ -1,7 +1,3 @@
-/**
- * Application constants and configuration defaults
- */
-
 // File paths
 export const DEFAULT_CONFIG_FILE = process.env.CONFIG_FILE_PATH || '.vocoder/config.json';
 export const DEFAULT_SOURCE_FILE = 'src/locales/en.json';

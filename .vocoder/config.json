@@ -1,9 +1,0 @@
-{
-    "outputDir": "locales",
-    "projectApiKey": "<PROJECT_API_KEY>",
-    "sourceFile": "src/locales/en.json",
-    "sourceLocale": "en",
-    "targetBranches": ["main"],
-    "targetLocales": ["fr", "it"]
-  }
-  

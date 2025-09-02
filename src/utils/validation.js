@@ -36,29 +36,6 @@ export function validateConfig(config) {
 }
 
 /**
- * Validate SHA hash
- */
-export function validateSha(sha) {
-  const logger = new Logger('Validation');
-
-  if (!sha || typeof sha !== 'string') {
-    logger.error('Invalid SHA: must be a non-empty string', {
-      sha,
-      type: typeof sha
-    });
-    return false;
-  }
-
-  // Basic SHA validation (40 character hex string)
-  if (!/^[a-f0-9]{40}$/.test(sha)) {
-    logger.error('Invalid SHA: must be a 40-character hexadecimal string', { sha });
-    return false;
-  }
-
-  return true;
-}
-
-/**
  * Validate environment variables
  */
 export function validateEnvironmentVariables(requiredVars) {

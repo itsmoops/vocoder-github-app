@@ -135,19 +135,9 @@ ngrok http 3011
 
 ## 🧪 Testing
 
-### Debug Endpoints
+### Health Check
 
 - **Health Check**: `GET /health` - Check if the server is running
-- **Test Webhook**: `POST /debug/test` - Simulate a PR opened event
-
-### Test Script
-
-```bash
-# Run the automated test script
-node test-debug.js
-```
-
-This will test both endpoints and show you the complete workflow.
 
 ## 📊 Status Checks
 

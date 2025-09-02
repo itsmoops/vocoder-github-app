@@ -1,7 +1,6 @@
 import { App, Octokit } from "octokit";
 import { DEFAULT_PORT, ENV_VARS, SUPPORTED_PR_EVENTS, WEBHOOK_PATH } from "./utils/constants.js";
 import { WebhookEvent, shouldProcessWebhook } from "./utils/webhook.js";
-import { createDebugMiddleware, createHealthCheck } from "./debug-endpoints.js";
 import { handlePullRequestEvent, handlePushEvent } from "./utils/events.js";
 
 import { ErrorHandler } from "./utils/errors.js";
@@ -99,7 +98,7 @@ app.webhooks.onAny((event) => {
   });
 });
 
-// Create HTTP server with debug endpoints
+// Create HTTP server
 const server = http.createServer((req, res) => {
   // Set CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -113,29 +112,21 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  let requestHandled = false;
-
   // Handle health check
-  const healthCheck = createHealthCheck();
-  if (healthCheck(req, res)) {
-    requestHandled = true;
-    return;
-  }
-
-  // Handle debug endpoints
-  const debugMiddleware = createDebugMiddleware(async (payload, action) => {
-    const event = new WebhookEvent(app.octokit, payload);
-    return await handlePullRequestEvent(event, action);
-  });
-  if (debugMiddleware(req, res)) {
-    requestHandled = true;
+  if (req.url === '/health' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      version: process.version
+    }));
     return;
   }
 
   // Handle webhooks
-  if (!requestHandled) {
-    middleware(req, res);
-  }
+  middleware(req, res);
 });
 
 // Start server with port fallback
@@ -145,9 +136,6 @@ function startServer(port) {
       logger.success(
         `Vocoder Localization App listening at http://localhost:${port}${webhookPath}`
       );
-      logger.info("Debug endpoints:");
-      logger.info(`  - Health: http://localhost:${port}/health`);
-      logger.info(`  - Test: http://localhost:${port}/debug/test`);
       logger.info("Press Ctrl+C to quit");
     })
     .on("error", (err) => {

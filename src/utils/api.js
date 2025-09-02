@@ -1,19 +1,15 @@
 import { DEFAULT_CONFIG_FILE, STATUS_CONTEXT_VOCODER } from "./constants.js";
-import { validateConfig, validateSha } from "./validation.js";
 
 import { ErrorHandler } from "./errors.js";
 import { Logger } from "./logger.js";
 import { detectStringChanges } from "./localization.js";
+import { validateConfig } from "./validation.js";
 
 /**
  * Get file content from a specific commit/branch
  * Returns parsed JSON content or null if file doesn't exist
  */
 export async function getFileContent(event, filePath, ref) {
-  if (!validateSha(ref)) {
-    throw new Error('Invalid SHA reference');
-  }
-
   try {
     const normalizedFilePath = filePath.replace(/^\/+|\/+$/g, "");
 
@@ -43,11 +39,6 @@ export async function setCommitStatus(
   description,
   context = STATUS_CONTEXT_VOCODER
 ) {
-  // Validate inputs
-  if (!validateSha(sha)) {
-    throw new Error('Invalid SHA for commit status');
-  }
-
   try {
     await event.octokit.rest.repos.createCommitStatus({
       owner: event.owner,
@@ -161,7 +152,7 @@ export async function getConfigWithFallback(event) {
 }
 
 /**
- * Compare source file content between two commits using deep-object-diff
+ * Compare source file content between two commits
  */
 export async function compareSourceFiles(
   event,
@@ -187,7 +178,6 @@ export async function compareSourceFiles(
       return true;
     }
 
-    // Use detectStringChanges to compare content with deep-object-diff
     const changes = detectStringChanges(previousFile, currentFile);
 
     // Check if there are any actual changes

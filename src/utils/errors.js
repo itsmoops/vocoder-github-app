@@ -1,10 +1,6 @@
-import { HTTP_STATUS, STATUS_STATES } from './constants.js';
-
+import { HTTP_STATUS } from './constants.js';
 import { Logger } from './logger.js';
 
-/**
- * Centralized error handling utilities
- */
 export class ErrorHandler {
   /**
    * Handle API errors with consistent logging and response format
