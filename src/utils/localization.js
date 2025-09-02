@@ -1,10 +1,10 @@
-import { validateApiKey, validateLocales } from "./validation.js";
+import { validateApiKey, validateLocales } from './validation.js';
 
-import { ENV_VARS } from "./constants.js";
-import { ErrorHandler } from "./errors.js";
-import { Logger } from "./logger.js";
-import { detailedDiff } from "deep-object-diff";
-import { flatten } from "flat";
+import { ENV_VARS } from './constants.js';
+import { ErrorHandler } from './errors.js';
+import { Logger } from './logger.js';
+import { detailedDiff } from 'deep-object-diff';
+import { flatten } from 'flat';
 
 /**
  * Detect changes between base and current source strings
@@ -31,7 +31,7 @@ export function detectStringChanges(baseStrings = {}, currentStrings = {}) {
  * Send changes to translation API
  */
 export async function translateChanges(changes, projectApiKey, targetLocales) {
-  const logger = new Logger("Localization");
+  const logger = new Logger('Localization');
 
   try {
     // Validate inputs
@@ -43,14 +43,14 @@ export async function translateChanges(changes, projectApiKey, targetLocales) {
       logger.warn('Invalid API key format, using mock translations');
     }
 
-    logger.info("Sending changes to translation API", {
-      projectApiKey: projectApiKey ? "***" : "missing",
-      targetLocales: targetLocales,
+    logger.info('Sending changes to translation API', {
+      projectApiKey: projectApiKey ? '***' : 'missing',
+      targetLocales,
       changes: {
         added: Object.keys(changes.added).length,
         updated: Object.keys(changes.updated).length,
-        deleted: Object.keys(changes.deleted).length,
-      },
+        deleted: Object.keys(changes.deleted).length
+      }
     });
 
     // For now, mock the API call
@@ -63,7 +63,7 @@ export async function translateChanges(changes, projectApiKey, targetLocales) {
 
     return translations;
   } catch (error) {
-    return ErrorHandler.handleTranslationError(error, "Localization");
+    return ErrorHandler.handleTranslationError(error, 'Localization');
   }
 }
 
@@ -72,11 +72,11 @@ export async function translateChanges(changes, projectApiKey, targetLocales) {
  * Replace this with actual API integration
  */
 export async function mockTranslateAPI(changes, projectApiKey, targetLocales) {
-  const logger = new Logger("Localization");
-  logger.info("Mocking translation API call");
+  const logger = new Logger('Localization');
+  logger.info('Mocking translation API call');
 
   if (!projectApiKey) {
-    logger.warn("No project API key provided, using mock translations");
+    logger.warn('No project API key provided, using mock translations');
   }
 
   // Simulate API delay
@@ -116,30 +116,22 @@ export async function commitTranslationsToPR(
   outputDir,
   changes
 ) {
-  const logger = new Logger("Localization");
+  const logger = new Logger('Localization');
 
   try {
-    logger.info("Committing translations to PR branch", {
+    logger.info('Committing translations to PR branch', {
       branch: event.headBranch,
-      languages: Object.keys(translations),
+      languages: Object.keys(translations)
     });
 
     // Get the latest branch head to ensure we're working with the most recent state
     const { data: latestRef } = await event.octokit.rest.git.getRef({
       owner: event.owner,
       repo: event.repo,
-      ref: `heads/${event.headBranch}`,
+      ref: `heads/${event.headBranch}`
     });
 
     const latestSha = latestRef.object.sha;
-
-    // Get current tree of the PR branch using the latest SHA
-    const { data: currentTree } = await event.octokit.rest.git.getTree({
-      owner: event.owner,
-      repo: event.repo,
-      tree_sha: latestSha,
-      recursive: true,
-    });
 
     // Prepare files to commit
     const files = [];
@@ -154,20 +146,20 @@ export async function commitTranslationsToPR(
         owner: event.owner,
         repo: event.repo,
         content: fileContent,
-        encoding: "utf-8",
+        encoding: 'utf-8'
       });
 
       files.push({
         path: filePath,
         content: fileContent,
-        blobSha: blob.sha,
+        blobSha: blob.sha
       });
 
       treeItems.push({
         path: filePath,
-        mode: "100644",
-        type: "blob",
-        sha: blob.sha,
+        mode: '100644',
+        type: 'blob',
+        sha: blob.sha
       });
     }
 
@@ -176,7 +168,7 @@ export async function commitTranslationsToPR(
       owner: event.owner,
       repo: event.repo,
       base_tree: latestSha, // Use the latest branch head as base
-      tree: treeItems,
+      tree: treeItems
     });
 
     // Create commit
@@ -192,8 +184,8 @@ export async function commitTranslationsToPR(
       parents: [latestSha], // Use the latest branch head as parent
       author: {
         name: process.env[ENV_VARS.APP_NAME],
-        email: process.env[ENV_VARS.APP_EMAIL],
-      },
+        email: process.env[ENV_VARS.APP_EMAIL]
+      }
     });
 
     // Update the PR branch to point to the new commit
@@ -203,24 +195,24 @@ export async function commitTranslationsToPR(
       repo: event.repo,
       ref: `heads/${event.headBranch}`,
       sha: commit.sha,
-      force: true,
+      force: true
     });
 
-    logger.success("Successfully committed translations to PR branch", {
+    logger.success('Successfully committed translations to PR branch', {
       commitSha: commit.sha,
-      filesCommitted: files.length,
+      filesCommitted: files.length
     });
 
     return {
       success: true,
       commitSha: commit.sha,
-      filesCommitted: files.length,
+      filesCommitted: files.length
     };
   } catch (error) {
-    logger.error("Failed to commit translations to PR branch", error);
+    logger.error('Failed to commit translations to PR branch', error);
     return {
       success: false,
-      error: error.message,
+      error: error.message
     };
   }
 }
@@ -243,8 +235,8 @@ export function generateCommitMessage(changes, targetLocales) {
     parts.push(`Remove ${Object.keys(changes.deleted).length} strings`);
   }
 
-  const changeSummary = parts.join(", ");
-  const localeList = targetLocales.join(", ");
+  const changeSummary = parts.join(', ');
+  const localeList = targetLocales.join(', ');
 
   return `🌍 Localization: ${changeSummary}
 

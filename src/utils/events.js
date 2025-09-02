@@ -1,27 +1,27 @@
-import { ENV_VARS, STATUS_STATES } from "./constants.js";
+import { ENV_VARS, STATUS_STATES } from './constants.js';
 import {
   commitTranslationsToPR,
   detectStringChanges,
-  translateChanges,
-} from "./localization.js";
+  translateChanges
+} from './localization.js';
 import {
   getConfigWithFallback,
   getFileContent,
   getOpenPullRequests,
-  setCommitStatus,
-} from "./api.js";
+  setCommitStatus
+} from './api.js';
 
-import { ErrorHandler } from "./errors.js";
-import { Logger } from "./logger.js";
-import { isTargetBranch } from "./webhook.js";
+import { ErrorHandler } from './errors.js';
+import { Logger } from './logger.js';
+import { isTargetBranch } from './webhook.js';
 
 /**
  * Handle pull request events with functional approach
  */
 export async function handlePullRequestEvent(event, action) {
   const { owner, repo, payload } = event;
-  const { pull_request } = payload;
-  const prNumber = pull_request.number;
+  const { pull_request: pullRequest } = payload;
+  const prNumber = pullRequest.number;
 
   const logger = new Logger(`PR:${action}`);
   const timer = logger.time(`Processing PR #${prNumber} ${action}`);
@@ -35,7 +35,7 @@ export async function handlePullRequestEvent(event, action) {
     const config = await getConfigWithFallback(event);
     if (!config) {
       logger.warn(
-        "No configuration found, skipping localization processing"
+        'No configuration found, skipping localization processing'
       );
       return;
     }
@@ -55,42 +55,42 @@ export async function handlePullRequestEvent(event, action) {
     // Set status check and process
     await setCommitStatus(
       event,
-      pull_request.head.sha,
+      pullRequest.head.sha,
       STATUS_STATES.PENDING,
-      "Localization processing in progress...",
+      'Localization processing in progress...',
       process.env[ENV_VARS.APP_NAME]
     );
 
-    const result = await processPullRequest(event, pull_request, config);
+    const result = await processPullRequest(event, pullRequest, config);
 
     // Update status check based on result
     if (result.success) {
       await setCommitStatus(
         event,
-        pull_request.head.sha,
+        pullRequest.head.sha,
         STATUS_STATES.SUCCESS,
         `Localization complete: ${result.changesProcessed} changes processed`,
         process.env[ENV_VARS.APP_NAME]
       );
-      logger.success(`Localization processing completed successfully`, {
+      logger.success('Localization processing completed successfully', {
         changesProcessed: result.changesProcessed,
-        localesUpdated: result.localesUpdated,
+        localesUpdated: result.localesUpdated
       });
     } else {
       await setCommitStatus(
         event,
-        pull_request.head.sha,
+        pullRequest.head.sha,
         STATUS_STATES.FAILURE,
         `Localization failed: ${result.error}`,
         process.env[ENV_VARS.APP_NAME]
       );
-      logger.error(`Localization processing failed`, result.error);
+      logger.error('Localization processing failed', result.error);
     }
 
     timer.end();
   } catch (error) {
     logger.error(`Error processing PR #${prNumber}`, error);
-    await setErrorStatus(event, pull_request.head.sha, error);
+    await setErrorStatus(event, pullRequest.head.sha, error);
   }
 }
 
@@ -101,7 +101,7 @@ export async function handlePushEvent(event) {
   const { owner, repo } = event;
   const branch = event.currentBranch;
 
-  const logger = new Logger("PushEvent");
+  const logger = new Logger('PushEvent');
   const timer = logger.time(`Processing push to ${branch}`);
 
   try {
@@ -127,7 +127,7 @@ export async function handlePushEvent(event) {
     const openPRs = await getOpenPullRequests(event, branch);
 
     if (openPRs.length === 0) {
-      logger.info("No open PRs targeting this branch");
+      logger.info('No open PRs targeting this branch');
       return;
     }
 
@@ -146,7 +146,7 @@ export async function handlePushEvent(event) {
         if (result.success) {
           logger.success(`Re-processed PR #${pr.number} successfully`, {
             changesProcessed: result.changesProcessed,
-            localesUpdated: result.localesUpdated,
+            localesUpdated: result.localesUpdated
           });
         } else {
           logger.warn(
@@ -161,7 +161,7 @@ export async function handlePushEvent(event) {
 
     timer.end();
   } catch (error) {
-    logger.error(`Error processing push event`, error);
+    logger.error('Error processing push event', error);
   }
 }
 
@@ -169,42 +169,42 @@ export async function handlePushEvent(event) {
  * Main processing function for pull requests
  */
 export async function processPullRequest(event, pullRequest, config) {
-  const logger = new Logger("Events");
-  const timer = logger.time("Processing pull request");
+  const logger = new Logger('Events');
+  const timer = logger.time('Processing pull request');
 
   try {
     logger.info(`Processing PR #${pullRequest.number}`, {
       baseBranch: event.baseBranch,
       headBranch: event.headBranch,
-      headSha: pullRequest.head.sha,
+      headSha: pullRequest.head.sha
     });
 
     // Get source file content from both branches
     const [sourceContent, baseContent] = await Promise.all([
       getFileContent(event, config.sourceFile, pullRequest.head.sha),
-      getFileContent(event, config.sourceFile, pullRequest.base.sha),
+      getFileContent(event, config.sourceFile, pullRequest.base.sha)
     ]);
 
     if (!sourceContent) {
       return {
         success: false,
-        error: "No source localization file found in PR branch",
+        error: 'No source localization file found in PR branch',
         changesProcessed: 0,
-        localesUpdated: 0,
+        localesUpdated: 0
       };
     }
 
     if (!baseContent) {
       return {
         success: false,
-        error: "No source localization file found in base branch",
+        error: 'No source localization file found in base branch',
         changesProcessed: 0,
-        localesUpdated: 0,
+        localesUpdated: 0
       };
     }
 
     logger.success(`Found source file: ${config.sourceFile}`, {
-      stringCount: Object.keys(sourceContent).length,
+      stringCount: Object.keys(sourceContent).length
     });
 
     // Compare source strings to detect changes
@@ -216,24 +216,24 @@ export async function processPullRequest(event, pullRequest, config) {
       Object.keys(changes.deleted).length === 0
     ) {
       logger.info(
-        "No string changes detected, skipping translation processing"
+        'No string changes detected, skipping translation processing'
       );
       return {
         success: true,
         changesProcessed: 0,
         localesUpdated: 0,
-        message: "No changes detected",
+        message: 'No changes detected'
       };
     }
 
-    logger.info("String changes detected", {
+    logger.info('String changes detected', {
       added: Object.keys(changes.added).length,
       updated: Object.keys(changes.updated).length,
-      deleted: Object.keys(changes.deleted).length,
+      deleted: Object.keys(changes.deleted).length
     });
 
     // Send changes to translation API
-    const translationTimer = logger.time("Translation API call");
+    const translationTimer = logger.time('Translation API call');
     const translations = await translateChanges(
       changes,
       config.projectApiKey,
@@ -244,9 +244,9 @@ export async function processPullRequest(event, pullRequest, config) {
     if (!translations) {
       return {
         success: false,
-        error: "Translation API call failed",
+        error: 'Translation API call failed',
         changesProcessed: 0,
-        localesUpdated: 0,
+        localesUpdated: 0
       };
     }
 
@@ -264,7 +264,7 @@ export async function processPullRequest(event, pullRequest, config) {
         success: false,
         error: commitResult.error,
         changesProcessed: 0,
-        languagesUpdated: 0,
+        languagesUpdated: 0
       };
     }
 
@@ -281,15 +281,15 @@ export async function processPullRequest(event, pullRequest, config) {
         Object.keys(changes.added).length
       } additions, ${Object.keys(changes.updated).length} updates, and ${
         Object.keys(changes.deleted).length
-      } deletions`,
+      } deletions`
     };
   } catch (error) {
-    logger.error("Error processing pull request", error);
+    logger.error('Error processing pull request', error);
     return {
       success: false,
       error: error.message,
       changesProcessed: 0,
-      localesUpdated: 0,
+      localesUpdated: 0
     };
   }
 }
@@ -307,6 +307,6 @@ export async function setErrorStatus(event, sha, error) {
       process.env[ENV_VARS.APP_NAME]
     );
   } catch (statusError) {
-    await ErrorHandler.handleCommitStatusError(statusError, sha, "Events");
+    await ErrorHandler.handleCommitStatusError(statusError, sha, 'Events');
   }
 }

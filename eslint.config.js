@@ -9,7 +9,11 @@ export default [
       globals: {
         process: 'readonly',
         Buffer: 'readonly',
-        console: 'readonly'
+        console: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly'
       }
     },
     rules: {
@@ -17,12 +21,12 @@ export default [
       'no-unused-vars': 'warn',
       'no-debugger': 'warn',
       'no-console': 'off',
-      'camelcase': 'off',
-      'quotes': ['error', 'single'],
-      'semi': ['error', 'always'],
+      camelcase: 'off',
+      quotes: ['error', 'single'],
+      semi: ['error', 'always'],
       'comma-dangle': ['error', 'never'],
       'space-before-function-paren': ['error', 'never'],
-      'no-trailing-spaces': 'always',
+      'no-trailing-spaces': 'error',
       'eol-last': 'error',
       'no-multiple-empty-lines': ['error', { max: 1 }],
       'object-shorthand': 'warn'

@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "server": "nodemon --inspect src/app.js",
-    "lint": "standard",
-    "lint:fix": "standard --fix",
-    "lint:eslint": "eslint .",
-    "lint:eslint:fix": "eslint . --fix",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:standard": "standard",
+    "lint:standard:fix": "standard --fix",
     "ngrok": "ngrok http 3011"
   },
   "devDependencies": {

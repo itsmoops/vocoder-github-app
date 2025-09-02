@@ -21,7 +21,7 @@ export const STATUS_STATES = {
   ERROR: 'error',
   FAILURE: 'failure',
   PENDING: 'pending',
-  SUCCESS: 'success',
+  SUCCESS: 'success'
 };
 
 // Default configuration values
@@ -45,7 +45,7 @@ export const ENV_VARS = {
   ENTERPRISE_HOSTNAME: 'ENTERPRISE_HOSTNAME',
   PORT: 'PORT',
   PRIVATE_KEY_PATH: 'PRIVATE_KEY_PATH',
-  WEBHOOK_SECRET: 'WEBHOOK_SECRET',
+  WEBHOOK_SECRET: 'WEBHOOK_SECRET'
 };
 
 // Log levels
@@ -54,7 +54,7 @@ export const LOG_LEVELS = {
   ERROR: 'error',
   INFO: 'info',
   SUCCESS: 'success',
-  WARN: 'warn',
+  WARN: 'warn'
 };
 
 // HTTP status codes

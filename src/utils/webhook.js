@@ -8,7 +8,7 @@ export class WebhookEvent {
     this.payload = payload;
     this.owner = payload?.repository?.owner?.login;
     this.repo = payload?.repository?.name;
-    this.currentBranch = payload?.ref?.replace("refs/heads/", "") || null;
+    this.currentBranch = payload?.ref?.replace('refs/heads/', '') || null;
     this.defaultBranch = payload?.repository?.default_branch || null;
     this.baseBranch = payload?.pull_request?.base?.ref || null;
     this.baseSha = payload?.pull_request?.base?.sha || null;
@@ -28,7 +28,7 @@ export async function shouldProcessWebhook(event) {
 
     if (!config?.sourceFile) {
       logger.warn(
-        "No configuration or source file found, processing webhook anyway"
+        'No configuration or source file found, processing webhook anyway'
       );
       return true;
     }
@@ -47,7 +47,7 @@ export async function shouldProcessWebhook(event) {
     return true;
   } catch (error) {
     logger.warn(
-      "Error checking source file changes, processing webhook anyway",
+      'Error checking source file changes, processing webhook anyway',
       error
     );
     return true;
@@ -76,7 +76,7 @@ export async function checkPRSourceFileChanges(event, pullRequest, config) {
         {
           baseSha,
           headSha,
-          sourceFile: config.sourceFile,
+          sourceFile: config.sourceFile
         }
       );
       return false;
@@ -87,14 +87,14 @@ export async function checkPRSourceFileChanges(event, pullRequest, config) {
       {
         baseSha,
         headSha,
-        sourceFile: config.sourceFile,
+        sourceFile: config.sourceFile
       }
     );
 
     return true;
   } catch (error) {
     logger.warn(
-      "Error checking PR source file changes, processing webhook anyway",
+      'Error checking PR source file changes, processing webhook anyway',
       error
     );
     return true;
@@ -123,7 +123,7 @@ export async function checkPushSourceFileChanges(event, payload, config) {
         {
           previousSha: previousCommit,
           currentSha: latestCommit.id,
-          sourceFile: config.sourceFile,
+          sourceFile: config.sourceFile
         }
       );
       return false;
@@ -134,14 +134,14 @@ export async function checkPushSourceFileChanges(event, payload, config) {
       {
         previousSha: previousCommit,
         currentSha: latestCommit.id,
-        sourceFile: config.sourceFile,
+        sourceFile: config.sourceFile
       }
     );
 
     return true;
   } catch (error) {
     logger.warn(
-      "Error checking push source file changes, processing webhook anyway",
+      'Error checking push source file changes, processing webhook anyway',
       error
     );
     return true;

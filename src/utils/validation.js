@@ -12,11 +12,11 @@ export function validateConfig(config) {
     validated.targetBranches = DEFAULT_CONFIG.targetBranches;
   }
 
-  if (typeof validated.sourceFile !== "string") {
+  if (typeof validated.sourceFile !== 'string') {
     validated.sourceFile = DEFAULT_CONFIG.sourceFile;
   }
 
-  if (typeof validated.sourceLocale !== "string") {
+  if (typeof validated.sourceLocale !== 'string') {
     validated.sourceLocale = DEFAULT_CONFIG.sourceLocale;
   }
 
@@ -24,11 +24,11 @@ export function validateConfig(config) {
     validated.targetLocales = DEFAULT_CONFIG.targetLocales;
   }
 
-  if (typeof validated.outputDir !== "string") {
+  if (typeof validated.outputDir !== 'string') {
     validated.outputDir = DEFAULT_CONFIG.outputDir;
   }
 
-  if (typeof validated.projectApiKey !== "string") {
+  if (typeof validated.projectApiKey !== 'string') {
     validated.projectApiKey = DEFAULT_CONFIG.projectApiKey;
   }
 

@@ -1,9 +1,9 @@
-import { DEFAULT_CONFIG_FILE, STATUS_CONTEXT_VOCODER } from "./constants.js";
+import { DEFAULT_CONFIG_FILE, STATUS_CONTEXT_VOCODER } from './constants.js';
 
-import { ErrorHandler } from "./errors.js";
-import { Logger } from "./logger.js";
-import { detectStringChanges } from "./localization.js";
-import { validateConfig } from "./validation.js";
+import { ErrorHandler } from './errors.js';
+import { Logger } from './logger.js';
+import { detectStringChanges } from './localization.js';
+import { validateConfig } from './validation.js';
 
 /**
  * Get file content from a specific commit/branch
@@ -11,20 +11,20 @@ import { validateConfig } from "./validation.js";
  */
 export async function getFileContent(event, filePath, ref) {
   try {
-    const normalizedFilePath = filePath.replace(/^\/+|\/+$/g, "");
+    const normalizedFilePath = filePath.replace(/^\/+|\/+$/g, '');
 
     const { data: fileContent } = await event.octokit.rest.repos.getContent({
       owner: event.owner,
       repo: event.repo,
       path: normalizedFilePath,
-      ref,
+      ref
     });
 
-    if (fileContent.type === "file") {
-      return JSON.parse(Buffer.from(fileContent.content, "base64").toString());
+    if (fileContent.type === 'file') {
+      return JSON.parse(Buffer.from(fileContent.content, 'base64').toString());
     }
   } catch (error) {
-    return ErrorHandler.handleFileError(error, filePath, "API");
+    return ErrorHandler.handleFileError(error, filePath, 'API');
   }
   return null;
 }
@@ -46,13 +46,13 @@ export async function setCommitStatus(
       sha,
       state,
       description,
-      context,
+      context
     });
 
-    const logger = new Logger("API");
+    const logger = new Logger('API');
     logger.info(`Set status check to ${state}: ${description}`);
   } catch (error) {
-    await ErrorHandler.handleCommitStatusError(error, sha, "API");
+    await ErrorHandler.handleCommitStatusError(error, sha, 'API');
     throw error;
   }
 }
@@ -64,8 +64,8 @@ export async function getOpenPullRequests(event, baseBranch) {
   const { data: openPRs } = await event.octokit.rest.pulls.list({
     owner: event.owner,
     repo: event.repo,
-    state: "open",
-    base: baseBranch,
+    state: 'open',
+    base: baseBranch
   });
   return openPRs;
 }
@@ -77,7 +77,7 @@ export async function getBranchHead(event, branchName) {
   const { data: branchRef } = await event.octokit.rest.git.getRef({
     owner: event.owner,
     repo: event.repo,
-    ref: `heads/${branchName}`,
+    ref: `heads/${branchName}`
   });
   return branchRef.object.sha;
 }
@@ -88,8 +88,8 @@ export async function getBranchHead(event, branchName) {
  * @param {string} ref - Optional branch/commit reference (defaults to main)
  * Returns null if no config file exists
  */
-export async function getConfig(event, ref = "main") {
-  const logger = new Logger("API");
+export async function getConfig(event, ref = 'main') {
+  const logger = new Logger('API');
 
   try {
     const configPath = DEFAULT_CONFIG_FILE;
@@ -98,12 +98,12 @@ export async function getConfig(event, ref = "main") {
     if (configContent) {
       const validatedConfig = validateConfig(configContent);
 
-      logger.info("Repository configuration loaded", {
-        ref: ref,
+      logger.info('Repository configuration loaded', {
+        ref,
         targetBranches: validatedConfig.targetBranches,
         sourceFile: validatedConfig.sourceFile,
         targetLocales: validatedConfig.targetLocales,
-        hasApiKey: !!validatedConfig.projectApiKey,
+        hasApiKey: !!validatedConfig.projectApiKey
       });
 
       return validatedConfig;
@@ -112,7 +112,7 @@ export async function getConfig(event, ref = "main") {
     logger.info(`No ${configPath} found in repository at ref: ${ref}`);
     return null;
   } catch (error) {
-    return ErrorHandler.handleConfigError(error, process.env.CONFIG_FILE_PATH, "API");
+    return ErrorHandler.handleConfigError(error, process.env.CONFIG_FILE_PATH, 'API');
   }
 }
 
@@ -160,21 +160,21 @@ export async function compareSourceFiles(
   previousSha,
   currentSha
 ) {
-  const logger = new Logger("API");
+  const logger = new Logger('API');
 
   try {
     const [previousFile, currentFile] = await Promise.all([
       getFileContent(event, sourceFilePath, previousSha),
-      getFileContent(event, sourceFilePath, currentSha),
+      getFileContent(event, sourceFilePath, currentSha)
     ]);
 
     // Handle file existence cases
     if (!previousFile && !currentFile) {
-      logger.debug("Neither file exists, no change");
+      logger.debug('Neither file exists, no change');
       return false;
     }
     if (!previousFile || !currentFile) {
-      logger.debug("One file exists but not the other, that's a change");
+      logger.debug('One file exists but not the other, that\'s a change');
       return true;
     }
 
@@ -187,18 +187,18 @@ export async function compareSourceFiles(
       Object.keys(changes.deleted).length > 0;
 
     if (hasChanges) {
-      logger.debug("Source file changes detected", {
+      logger.debug('Source file changes detected', {
         added: Object.keys(changes.added).length,
         updated: Object.keys(changes.updated).length,
-        deleted: Object.keys(changes.deleted).length,
+        deleted: Object.keys(changes.deleted).length
       });
     } else {
-      logger.debug("No source file changes detected");
+      logger.debug('No source file changes detected');
     }
 
     return hasChanges;
   } catch (error) {
-    logger.warn("Error comparing source file content", error);
+    logger.warn('Error comparing source file content', error);
     return true; // Assume change if we can't compare
   }
 }
