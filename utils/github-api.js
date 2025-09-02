@@ -1,7 +1,7 @@
 import { Logger } from "../logger.js";
 
 /**
- * Common GitHub API utilities to reduce code duplication
+ * Common GitHub API utilities
  */
 export class GitHubApiUtils {
   constructor(app, owner, repo) {
@@ -9,7 +9,7 @@ export class GitHubApiUtils {
     this.owner = owner;
     this.repo = repo;
     this.logger = new Logger("GitHubApiUtils");
-    this.octokit = null; // Will be initialized when needed
+    this.octokit = null;
   }
 
   /**
@@ -19,10 +19,11 @@ export class GitHubApiUtils {
     if (!this.octokit) {
       try {
         // Get installation for this repository
-        const { data: installation } = await this.app.octokit.rest.apps.getRepoInstallation({
-          owner: this.owner,
-          repo: this.repo,
-        });
+        const { data: installation } =
+          await this.app.octokit.rest.apps.getRepoInstallation({
+            owner: this.owner,
+            repo: this.repo,
+          });
 
         // Create installation-specific Octokit
         this.octokit = await this.app.getInstallationOctokit(installation.id);
@@ -41,10 +42,13 @@ export class GitHubApiUtils {
   async getFileContent(filePath, ref) {
     try {
       const octokit = await this.getOctokit();
+
+      const normalizedFilePath = filePath.replace(/^\/+|\/+$/g, "");
+
       const { data: fileContent } = await octokit.rest.repos.getContent({
         owner: this.owner,
         repo: this.repo,
-        path: filePath,
+        path: normalizedFilePath,
         ref: ref,
       });
 
@@ -106,7 +110,7 @@ export class GitHubApiUtils {
     const { data: branchRef } = await octokit.rest.git.getRef({
       owner: this.owner,
       repo: this.repo,
-      ref: `heads/${branchName}`
+      ref: `heads/${branchName}`,
     });
     return branchRef.object.sha;
   }

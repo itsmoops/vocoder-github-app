@@ -16,31 +16,32 @@ export class WebhookUtils {
    */
   async shouldProcessWebhook(payload) {
     try {
-      // Add delay to prevent race conditions
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       const { owner, repo } = this.extractRepoInfo(payload);
-      const configManager = new ConfigManager(this.app, owner, repo);
-      const config = await configManager.getConfig();
-      
+      const config = await this.getRepositoryConfig(payload);
+
       if (!config?.sourceFile) {
-        this.logger.warn("No configuration or source file found, processing webhook anyway");
+        this.logger.warn(
+          "No configuration or source file found, processing webhook anyway"
+        );
         return true;
       }
-      
+
       const apiUtils = new GitHubApiUtils(this.app, owner, repo);
-      
+
       if (payload.pull_request) {
         return await this.checkPRSourceFileChanges(apiUtils, payload, config);
       }
-      
+
       if (payload.commits?.length > 0) {
         return await this.checkPushSourceFileChanges(apiUtils, payload, config);
       }
-      
+
       return true;
     } catch (error) {
-      this.logger.warn("Error checking source file changes, processing webhook anyway", error);
+      this.logger.warn(
+        "Error checking source file changes, processing webhook anyway",
+        error
+      );
       return true;
     }
   }
@@ -51,8 +52,32 @@ export class WebhookUtils {
   extractRepoInfo(payload) {
     return {
       owner: payload.repository.owner.login,
-      repo: payload.repository.name
+      repo: payload.repository.name,
     };
+  }
+
+  /**
+   * Get repository configuration with appropriate fallback logic
+   */
+  async getRepositoryConfig(payload) {
+    const { owner, repo } = this.extractRepoInfo(payload);
+    const configManager = new ConfigManager(this.app, owner, repo);
+
+    if (payload.pull_request) {
+      // For PR events, try PR branch first, then base branch
+      let config = await configManager.getConfig(payload.pull_request.head.sha);
+      if (!config) {
+        config = await configManager.getConfig(payload.pull_request.base.ref);
+      }
+      return config;
+    } else if (payload.commits?.length > 0) {
+      // For push events, get config from the current branch
+      const branch = payload.ref.replace("refs/heads/", "");
+      return await configManager.getConfig(branch);
+    } else {
+      // Fallback to default branch
+      return await configManager.getConfig();
+    }
   }
 
   /**
@@ -60,7 +85,7 @@ export class WebhookUtils {
    */
   async checkPRSourceFileChanges(apiUtils, payload, config) {
     const pr = payload.pull_request;
-    
+
     try {
       const hasChanged = await this.compareSourceFiles(
         apiUtils,
@@ -68,25 +93,34 @@ export class WebhookUtils {
         pr.base.sha,
         pr.head.sha
       );
-      
+
       if (!hasChanged) {
-        this.logger.info(`Skipping webhook - no changes to source file ${config.sourceFile}`, {
-          baseSha: pr.base.sha,
-          headSha: pr.head.sha,
-          sourceFile: config.sourceFile
-        });
+        this.logger.info(
+          `Skipping webhook - no changes to source file ${config.sourceFile}`,
+          {
+            baseSha: pr.base.sha,
+            headSha: pr.head.sha,
+            sourceFile: config.sourceFile,
+          }
+        );
         return false;
       }
-      
-      this.logger.info(`Processing webhook - source file ${config.sourceFile} has changes`, {
-        baseSha: pr.base.sha,
-        headSha: pr.head.sha,
-        sourceFile: config.sourceFile
-      });
-      
+
+      this.logger.info(
+        `Processing webhook - source file ${config.sourceFile} has changes`,
+        {
+          baseSha: pr.base.sha,
+          headSha: pr.head.sha,
+          sourceFile: config.sourceFile,
+        }
+      );
+
       return true;
     } catch (error) {
-      this.logger.warn("Error checking PR source file changes, processing webhook anyway", error);
+      this.logger.warn(
+        "Error checking PR source file changes, processing webhook anyway",
+        error
+      );
       return true;
     }
   }
@@ -97,7 +131,7 @@ export class WebhookUtils {
   async checkPushSourceFileChanges(apiUtils, payload, config) {
     const latestCommit = payload.commits[payload.commits.length - 1];
     const previousCommit = payload.before;
-    
+
     try {
       const hasChanged = await this.compareSourceFiles(
         apiUtils,
@@ -105,25 +139,34 @@ export class WebhookUtils {
         previousCommit,
         latestCommit.id
       );
-      
+
       if (!hasChanged) {
-        this.logger.info(`Skipping push webhook - no changes to source file ${config.sourceFile}`, {
-          previousSha: previousCommit,
-          currentSha: latestCommit.id,
-          sourceFile: config.sourceFile
-        });
+        this.logger.info(
+          `Skipping push webhook - no changes to source file ${config.sourceFile}`,
+          {
+            previousSha: previousCommit,
+            currentSha: latestCommit.id,
+            sourceFile: config.sourceFile,
+          }
+        );
         return false;
       }
-      
-      this.logger.info(`Processing push webhook - source file ${config.sourceFile} has changes`, {
-        previousSha: previousCommit,
-        currentSha: latestCommit.id,
-        sourceFile: config.sourceFile
-      });
-      
+
+      this.logger.info(
+        `Processing push webhook - source file ${config.sourceFile} has changes`,
+        {
+          previousSha: previousCommit,
+          currentSha: latestCommit.id,
+          sourceFile: config.sourceFile,
+        }
+      );
+
       return true;
     } catch (error) {
-      this.logger.warn("Error checking push source file changes, processing webhook anyway", error);
+      this.logger.warn(
+        "Error checking push source file changes, processing webhook anyway",
+        error
+      );
       return true;
     }
   }
@@ -135,18 +178,28 @@ export class WebhookUtils {
     try {
       const [previousFile, currentFile] = await Promise.all([
         apiUtils.getFileContent(sourceFilePath, previousSha),
-        apiUtils.getFileContent(sourceFilePath, currentSha)
+        apiUtils.getFileContent(sourceFilePath, currentSha),
       ]);
-      
+      debugger;
+
       // Handle file existence cases
-      if (!previousFile && !currentFile) return false;
-      if (!previousFile || !currentFile) return true;
-      
+      if (!previousFile && !currentFile) {
+        this.logger.debug("Neither file exists, no change");
+        return false;
+      }
+      if (!previousFile || !currentFile) {
+        this.logger.debug("One file exists but not the other, that's a change");
+        return true;
+      }
+
       // Compare content
       const previousContent = JSON.stringify(previousFile, null, 2);
       const currentContent = JSON.stringify(currentFile, null, 2);
-      
-      return previousContent !== currentContent;
+
+      const hasChanged = previousContent !== currentContent;
+      debugger;
+
+      return hasChanged;
     } catch (error) {
       this.logger.warn("Error comparing source file content", error);
       return true; // Assume change if we can't compare

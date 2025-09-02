@@ -94,7 +94,7 @@ export class EventHandler {
 
       // Get configuration and check if branch is monitored
       const configManager = new ConfigManager(this.app, owner, repo);
-      const config = await configManager.getConfig();
+      const config = await configManager.getRepositoryConfig(payload);
 
       if (!config || !configManager.isTargetBranch(branch, config)) {
         eventLogger.info(`Branch '${branch}' not monitored or no config found, skipping`);
