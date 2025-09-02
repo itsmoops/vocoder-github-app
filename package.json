@@ -4,11 +4,16 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "server": "nodemon --inspect app.js",
+    "server": "nodemon --inspect app-2.js",
     "lint": "standard",
+    "lint:fix": "standard --fix",
+    "lint:eslint": "eslint .",
+    "lint:eslint:fix": "eslint . --fix",
     "ngrok": "ngrok http 3011"
   },
   "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "eslint": "^8.57.1",
     "smee-client": "^2.0.1",
     "standard": "^17.0.0"
   },
