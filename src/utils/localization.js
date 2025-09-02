@@ -1,3 +1,7 @@
+import { validateApiKey, validateLocales } from "./validation.js";
+
+import { ENV_VARS } from "./constants.js";
+import { ErrorHandler } from "./errors.js";
 import { Logger } from "./logger.js";
 import { detailedDiff } from "deep-object-diff";
 import { flatten } from "flat";
@@ -30,6 +34,15 @@ export async function translateChanges(changes, projectApiKey, targetLocales) {
   const logger = new Logger("Localization");
 
   try {
+    // Validate inputs
+    if (!validateLocales(targetLocales)) {
+      throw new Error('Invalid target locales');
+    }
+
+    if (projectApiKey && !validateApiKey(projectApiKey)) {
+      logger.warn('Invalid API key format, using mock translations');
+    }
+
     logger.info("Sending changes to translation API", {
       projectApiKey: projectApiKey ? "***" : "missing",
       targetLocales: targetLocales,
@@ -50,8 +63,7 @@ export async function translateChanges(changes, projectApiKey, targetLocales) {
 
     return translations;
   } catch (error) {
-    logger.error("Translation API call failed", error);
-    return null;
+    return ErrorHandler.handleTranslationError(error, "Localization");
   }
 }
 
@@ -179,8 +191,8 @@ export async function commitTranslationsToPR(
       tree: newTree.sha,
       parents: [latestSha], // Use the latest branch head as parent
       author: {
-        name: process.env.APP_NAME,
-        email: process.env.APP_EMAIL,
+        name: process.env[ENV_VARS.APP_NAME],
+        email: process.env[ENV_VARS.APP_EMAIL],
       },
     });
 

@@ -1,4 +1,3 @@
-// Enhanced logging system for debugging GitHub App
 export class Logger {
   constructor(context = '') {
     this.context = context
@@ -9,7 +8,7 @@ export class Logger {
     const timestamp = new Date().toISOString()
     const contextStr = this.context ? `[${this.context}] ` : ''
     const dataStr = data ? ` | Data: ${JSON.stringify(data, null, 2)}` : ''
-    
+
     console.log(`ℹ️  ${timestamp} ${contextStr}${message}${dataStr}`)
   }
 
@@ -17,7 +16,7 @@ export class Logger {
     const timestamp = new Date().toISOString()
     const contextStr = this.context ? `[${this.context}] ` : ''
     const dataStr = data ? ` | Data: ${JSON.stringify(data, null, 2)}` : ''
-    
+
     console.log(`✅ ${timestamp} ${contextStr}${message}${dataStr}`)
   }
 
@@ -25,7 +24,7 @@ export class Logger {
     const timestamp = new Date().toISOString()
     const contextStr = this.context ? `[${this.context}] ` : ''
     const dataStr = data ? ` | Data: ${JSON.stringify(data, null, 2)}` : ''
-    
+
     console.log(`⚠️  ${timestamp} ${contextStr}${message}${dataStr}`)
   }
 
@@ -34,9 +33,9 @@ export class Logger {
     const contextStr = this.context ? `[${this.context}] ` : ''
     const errorStr = error ? ` | Error: ${error.message}` : ''
     const dataStr = data ? ` | Data: ${JSON.stringify(data, null, 2)}` : ''
-    
+
     console.error(`❌ ${timestamp} ${contextStr}${message}${errorStr}${dataStr}`)
-    
+
     if (error && error.stack) {
       console.error(`Stack trace: ${error.stack}`)
     }
@@ -47,7 +46,7 @@ export class Logger {
       const timestamp = new Date().toISOString()
       const contextStr = this.context ? `[${this.context}] ` : ''
       const dataStr = data ? ` | Data: ${JSON.stringify(data, null, 2)}` : ''
-      
+
       console.log(`🐛 ${timestamp} ${contextStr}${message}${dataStr}`)
     }
   }
@@ -81,11 +80,11 @@ export class Logger {
       method,
       endpoint
     }
-    
+
     if (rateLimit) {
       logData.rateLimit = rateLimit
     }
-    
+
     this.info(`${statusIcon} GitHub API: ${method} ${endpoint}`, logData)
   }
 
@@ -111,4 +110,4 @@ export class Logger {
       createPRs: config.createPRs
     })
   }
-} 
+}

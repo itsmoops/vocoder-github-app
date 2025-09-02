@@ -1,32 +1,37 @@
 import { App, Octokit } from "octokit";
+import { DEFAULT_PORT, ENV_VARS, SUPPORTED_PR_EVENTS, WEBHOOK_PATH } from "./utils/constants.js";
 import { WebhookEvent, shouldProcessWebhook } from "./utils/webhook.js";
 import { createDebugMiddleware, createHealthCheck } from "./debug-endpoints.js";
 import { handlePullRequestEvent, handlePushEvent } from "./utils/events.js";
 
+import { ErrorHandler } from "./utils/errors.js";
 import { Logger } from "./utils/logger.js";
 import { createNodeMiddleware } from "@octokit/webhooks";
 import dotenv from "dotenv";
 import fs from "fs";
 import http from "http";
+import { validateEnvironmentVariables } from "./utils/validation.js";
 
 // Load environment variables
 dotenv.config();
 
 // Initialize logger
-const logger = new Logger("MainApp");
+const logger = new Logger("App");
 
 // Validate required environment variables
 const requiredEnvVars = [
-  "APP_ID",
-  "APP_URL",
-  "PRIVATE_KEY_PATH",
-  "WEBHOOK_SECRET",
+  ENV_VARS.APP_ID,
+  ENV_VARS.APP_URL,
+  ENV_VARS.PRIVATE_KEY_PATH,
+  ENV_VARS.WEBHOOK_SECRET,
+  ENV_VARS.CONFIG_FILE_PATH,
+  ENV_VARS.APP_NAME,
+  ENV_VARS.APP_EMAIL,
 ];
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    logger.error(`Missing required environment variable: ${envVar}`);
-    process.exit(1);
-  }
+
+if (!validateEnvironmentVariables(requiredEnvVars)) {
+  logger.error("Missing required environment variables");
+  process.exit(1);
 }
 
 // Create GitHub App instance
@@ -48,38 +53,39 @@ const { data } = await app.octokit.request("/app");
 logger.success(`GitHub App authenticated as '${data.name}'`);
 
 // Webhook pull request events
-const prEvents = ["opened", "synchronize", "reopened"];
-for (const action of prEvents) {
+for (const action of SUPPORTED_PR_EVENTS) {
   app.webhooks.on(`pull_request.${action}`, async ({ octokit, payload }) => {
-    const event = new WebhookEvent(octokit, payload);
-    if (await shouldProcessWebhook(event)) {
-      logger.info(`Processing pull request ${payload.number} ${action}`);
-      await handlePullRequestEvent(event, action);
+    try {
+      const event = new WebhookEvent(octokit, payload);
+      if (await shouldProcessWebhook(event)) {
+        await handlePullRequestEvent(event, action);
+      }
+    } catch (error) {
+      await ErrorHandler.handleWebhookError(error, payload, "PRWebhook");
     }
   });
 }
 
 // Handle push events
 app.webhooks.on("push", async ({ octokit, payload }) => {
-  const event = new WebhookEvent(octokit, payload);
-  if (await shouldProcessWebhook(event)) {
-    logger.info(`Processing push to ${payload.ref}`);
-    await handlePushEvent(event);
+  try {
+    const event = new WebhookEvent(octokit, payload);
+    if (await shouldProcessWebhook(event)) {
+      await handlePushEvent(event);
+    }
+  } catch (error) {
+    await ErrorHandler.handleWebhookError(error, payload, "PushWebhook");
   }
 });
 
-// Error handling
+// Comprehensive error handling for webhooks
 app.webhooks.onError((error) => {
-  if (error.name === "AggregateError") {
-    logger.error(`Webhook error processing request: ${error.event}`, error);
-  } else {
-    logger.error("Webhook error", error);
-  }
+  ErrorHandler.handleWebhookError(error, null, "WebhookError");
 });
 
 // Server setup
-const port = process.env.PORT || 3011;
-const webhookPath = "/api/webhook";
+const port = process.env.PORT || DEFAULT_PORT;
+const webhookPath = WEBHOOK_PATH;
 
 // Create webhook middleware
 const middleware = createNodeMiddleware(app.webhooks, { path: webhookPath });
@@ -90,15 +96,6 @@ app.webhooks.onAny((event) => {
     event: event.name,
     action: event.payload?.action,
     repository: event.payload?.repository?.full_name,
-  });
-});
-
-// Add error logging for webhook processing
-app.webhooks.onError((error) => {
-  logger.error("Webhook processing error", error, {
-    errorName: error.name,
-    errorMessage: error.message,
-    stack: error.stack,
   });
 });
 

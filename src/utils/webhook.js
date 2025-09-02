@@ -1,14 +1,13 @@
 import { compareSourceFiles, getConfigWithFallback } from './api.js';
 
 import { Logger } from './logger.js';
-import { isTargetBranch } from './config.js';
 
 export class WebhookEvent {
   constructor(octokit = {}, payload = {}) {
     this.octokit = octokit;
+    this.payload = payload;
     this.owner = payload?.repository?.owner?.login;
     this.repo = payload?.repository?.name;
-    this.payload = payload;
     this.currentBranch = payload?.ref?.replace("refs/heads/", "") || null;
     this.defaultBranch = payload?.repository?.default_branch || null;
     this.baseBranch = payload?.pull_request?.base?.ref || null;
@@ -151,7 +150,14 @@ export async function checkPushSourceFileChanges(event, payload, config) {
 
 /**
  * Check if a branch matches any of the target branch patterns
+ * Supports wildcard patterns like "release-*", "feature/*"
  */
-export function isTargetBranchForConfig(branchName, config) {
-  return isTargetBranch(branchName, config);
+export function isTargetBranch(branchName, config) {
+  return config.targetBranches.some(pattern => {
+    if (pattern.includes('*')) {
+      const regexPattern = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+      return regexPattern.test(branchName);
+    }
+    return branchName === pattern;
+  });
 }

@@ -1,12 +1,19 @@
+import { DEFAULT_CONFIG_FILE, STATUS_CONTEXT_VOCODER } from "./constants.js";
+import { validateConfig, validateSha } from "./validation.js";
+
+import { ErrorHandler } from "./errors.js";
 import { Logger } from "./logger.js";
 import { detectStringChanges } from "./localization.js";
-import { validateConfig } from "./config.js";
 
 /**
  * Get file content from a specific commit/branch
  * Returns parsed JSON content or null if file doesn't exist
  */
 export async function getFileContent(event, filePath, ref) {
+  if (!validateSha(ref)) {
+    throw new Error('Invalid SHA reference');
+  }
+
   try {
     const normalizedFilePath = filePath.replace(/^\/+|\/+$/g, "");
 
@@ -21,10 +28,7 @@ export async function getFileContent(event, filePath, ref) {
       return JSON.parse(Buffer.from(fileContent.content, "base64").toString());
     }
   } catch (error) {
-    if (error.status === 404) {
-      return null; // File doesn't exist
-    }
-    throw error;
+    return ErrorHandler.handleFileError(error, filePath, "API");
   }
   return null;
 }
@@ -37,8 +41,13 @@ export async function setCommitStatus(
   sha,
   state,
   description,
-  context = "Vocoder"
+  context = STATUS_CONTEXT_VOCODER
 ) {
+  // Validate inputs
+  if (!validateSha(sha)) {
+    throw new Error('Invalid SHA for commit status');
+  }
+
   try {
     await event.octokit.rest.repos.createCommitStatus({
       owner: event.owner,
@@ -52,8 +61,7 @@ export async function setCommitStatus(
     const logger = new Logger("API");
     logger.info(`Set status check to ${state}: ${description}`);
   } catch (error) {
-    const logger = new Logger("API");
-    logger.error("Failed to set status check", error);
+    await ErrorHandler.handleCommitStatusError(error, sha, "API");
     throw error;
   }
 }
@@ -93,11 +101,8 @@ export async function getConfig(event, ref = "main") {
   const logger = new Logger("API");
 
   try {
-    const configContent = await getFileContent(
-      event,
-      process.env.CONFIG_FILE_PATH,
-      ref
-    );
+    const configPath = DEFAULT_CONFIG_FILE;
+    const configContent = await getFileContent(event, configPath, ref);
 
     if (configContent) {
       const validatedConfig = validateConfig(configContent);
@@ -113,13 +118,10 @@ export async function getConfig(event, ref = "main") {
       return validatedConfig;
     }
 
-    logger.info(
-      `No ${process.env.CONFIG_FILE_PATH} found in repository at ref: ${ref}`
-    );
+    logger.info(`No ${configPath} found in repository at ref: ${ref}`);
     return null;
   } catch (error) {
-    logger.error("Error reading configuration", error);
-    return null;
+    return ErrorHandler.handleConfigError(error, process.env.CONFIG_FILE_PATH, "API");
   }
 }
 
@@ -128,20 +130,34 @@ export async function getConfig(event, ref = "main") {
  */
 export async function getConfigWithFallback(event) {
   const { baseBranch, currentBranch, defaultBranch, headSha, payload = {} } = event;
-  const { pull_request: pullRequest, commits = [] } = payload;
+  const { pull_request: pullRequest } = payload;
 
   if (pullRequest) {
+    // Get config from head SHA
     let config = await getConfig(event, headSha);
     if (!config) {
+      // Get config from base branch
       config = await getConfig(event, baseBranch);
     }
+
+    if (!config) {
+      // Get config from default branch
+      config = await getConfig(event, defaultBranch);
+    }
+
     return config;
-  } else if (currentBranch && commits?.length > 0) {
-    return await getConfig(event, currentBranch);
+  } else if (currentBranch) {
+    // Get config from current branch
+    let config = await getConfig(event, currentBranch);
+    if (!config) {
+      // Get config from default branch
+      config = await getConfig(event, defaultBranch);
+    }
+
+    return config;
   }
 
-  // Fallback to default branch
-  return await getConfig(event, defaultBranch);
+  return null;
 }
 
 /**

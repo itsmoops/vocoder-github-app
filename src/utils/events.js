@@ -1,3 +1,4 @@
+import { ENV_VARS, STATUS_STATES } from "./constants.js";
 import {
   commitTranslationsToPR,
   detectStringChanges,
@@ -10,8 +11,9 @@ import {
   setCommitStatus,
 } from "./api.js";
 
+import { ErrorHandler } from "./errors.js";
 import { Logger } from "./logger.js";
-import { isTargetBranchForConfig } from "./webhook.js";
+import { isTargetBranch } from "./webhook.js";
 
 /**
  * Handle pull request events with functional approach
@@ -39,7 +41,7 @@ export async function handlePullRequestEvent(event, action) {
     }
 
     // Check if PR targets monitored branch
-    if (!isTargetBranchForConfig(event.baseBranch, config)) {
+    if (!isTargetBranch(event.baseBranch, config)) {
       logger.info(
         `PR targets branch '${event.baseBranch}' which is not monitored`
       );
@@ -54,9 +56,9 @@ export async function handlePullRequestEvent(event, action) {
     await setCommitStatus(
       event,
       pull_request.head.sha,
-      "pending",
+      STATUS_STATES.PENDING,
       "Localization processing in progress...",
-      process.env.APP_NAME
+      process.env[ENV_VARS.APP_NAME]
     );
 
     const result = await processPullRequest(event, pull_request, config);
@@ -66,9 +68,9 @@ export async function handlePullRequestEvent(event, action) {
       await setCommitStatus(
         event,
         pull_request.head.sha,
-        "success",
+        STATUS_STATES.SUCCESS,
         `Localization complete: ${result.changesProcessed} changes processed`,
-        process.env.APP_NAME
+        process.env[ENV_VARS.APP_NAME]
       );
       logger.success(`Localization processing completed successfully`, {
         changesProcessed: result.changesProcessed,
@@ -78,9 +80,9 @@ export async function handlePullRequestEvent(event, action) {
       await setCommitStatus(
         event,
         pull_request.head.sha,
-        "failure",
+        STATUS_STATES.FAILURE,
         `Localization failed: ${result.error}`,
-        process.env.APP_NAME
+        process.env[ENV_VARS.APP_NAME]
       );
       logger.error(`Localization processing failed`, result.error);
     }
@@ -96,7 +98,7 @@ export async function handlePullRequestEvent(event, action) {
  * Handle push events with functional approach
  */
 export async function handlePushEvent(event) {
-  const { owner, repo, payload } = event;
+  const { owner, repo } = event;
   const branch = event.currentBranch;
 
   const logger = new Logger("PushEvent");
@@ -110,7 +112,7 @@ export async function handlePushEvent(event) {
     // Get configuration and check if branch is monitored
     const config = await getConfigWithFallback(event);
 
-    if (!config || !isTargetBranchForConfig(branch, config)) {
+    if (!config || !isTargetBranch(branch, config)) {
       logger.info(
         `Branch '${branch}' not monitored or no config found, skipping`
       );
@@ -300,12 +302,11 @@ export async function setErrorStatus(event, sha, error) {
     await setCommitStatus(
       event,
       sha,
-      "failure",
+      STATUS_STATES.FAILURE,
       `Localization error: ${error.message}`,
-      process.env.APP_NAME
+      process.env[ENV_VARS.APP_NAME]
     );
   } catch (statusError) {
-    const logger = new Logger("Events");
-    logger.error("Failed to set status check", statusError);
+    await ErrorHandler.handleCommitStatusError(statusError, sha, "Events");
   }
 }

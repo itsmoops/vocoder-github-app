@@ -1,4 +1,7 @@
-import { Logger } from './utils/logger.js'
+import { createMockPRData, createMockRepositoryData, createMockWebhookPayload } from './debug/mock-data.js';
+
+import { Logger } from './utils/logger.js';
+import { createMockOctokit } from './debug/mock-api.js';
 
 // Helper function to send JSON response
 function sendJsonResponse(res, statusCode, data) {
@@ -31,92 +34,13 @@ export function createDebugMiddleware(handlePullRequestEvent) {
       const logger = new Logger('DebugEndpoints')
       logger.info('Debug test endpoint hit')
 
-      // Create mock pull request data for testing
-      const mockPR = {
-        number: 123,
-        title: 'Test PR for localization',
-        base: {
-          ref: 'main',
-          sha: 'base-sha-123'
-        },
-        head: {
-          ref: 'feature/localization-test',
-          sha: 'head-sha-456'
-        }
-      }
-
-      const mockRepository = {
-        owner: { login: 'testuser' },
-        name: 'test-repo'
-      }
-
-      const mockPayload = {
-        repository: mockRepository,
-        pull_request: mockPR,
-        action: 'opened'
-      }
+      // Create mock data for testing
+      const mockPR = createMockPRData();
+      const mockRepository = createMockRepositoryData();
+      const mockPayload = createMockWebhookPayload();
 
       // Create mock Octokit instance for testing
-      const mockOctokit = {
-        rest: {
-          repos: {
-            getContent: async (params) => {
-              logger.info('Mock repos.getContent', params)
-              if (params.path === '.vocoder/config.json') {
-                return {
-                  data: {
-                    type: 'file',
-                    content: Buffer.from(JSON.stringify({
-                      targetBranches: ['main'],
-                      sourceFiles: ['src/locales/en.json'],
-                      projectApiKey: 'test-api-key',
-                      outputDir: 'src/locales',
-                      languages: ['es', 'fr']
-                    })).toString('base64')
-                  }
-                }
-              } else if (params.path === 'src/locales/en.json') {
-                return {
-                  data: {
-                    type: 'file',
-                    content: Buffer.from(JSON.stringify({
-                      welcome: 'Welcome to our app',
-                      goodbye: 'Goodbye!'
-                    })).toString('base64')
-                  }
-                }
-              }
-              return { data: { type: 'file', content: '' } }
-            },
-            createCommitStatus: async (params) => {
-              logger.info('Mock createCommitStatus', params)
-              return { data: { id: 'mock-status-id' } }
-            }
-          },
-          git: {
-            getTree: async (params) => {
-              logger.info('Mock git getTree', params)
-              return { data: { sha: 'mock-tree-sha' } }
-            },
-            createBlob: async (params) => {
-              logger.info('Mock git createBlob', params)
-              return { data: { sha: 'mock-blob-sha' } }
-            },
-            createTree: async (params) => {
-              logger.info('Mock git createTree', params)
-              return { data: { sha: 'mock-new-tree-sha' } }
-            },
-            createCommit: async (params) => {
-              logger.info('Mock git createCommit', params)
-              return { data: { sha: 'mock-commit-sha' } }
-            },
-            updateRef: async (params) => {
-              logger.info('Mock git updateRef', params)
-              return { data: { ref: params.ref } }
-            }
-          }
-        }
-      }
+      const mockOctokit = createMockOctokit();
 
       // Simulate the event processing
       logger.info('Processing debug event: pull_request.opened')
