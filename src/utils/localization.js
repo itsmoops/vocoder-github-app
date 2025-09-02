@@ -54,7 +54,6 @@ export async function translateChanges(changes, projectApiKey, targetLocales) {
     });
 
     // For now, mock the API call
-    // In production, this would send the changes to your hosted API
     const translations = await mockTranslateAPI(
       changes,
       projectApiKey,
