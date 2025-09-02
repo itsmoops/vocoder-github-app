@@ -22,18 +22,18 @@ export async function handlePullRequestEvent(event, action) {
   const { owner, repo } = extractRepoInfo(repository);
   const prNumber = pull_request.number;
 
-  const eventLogger = new Logger(`PR:${action}`);
-  const timer = eventLogger.time(`Processing PR #${prNumber} ${action}`);
+  const logger = new Logger(`PR:${action}`);
+  const timer = logger.time(`Processing PR #${prNumber} ${action}`);
 
   try {
-    eventLogger.info(
+    logger.info(
       `Processing PR #${prNumber} ${action} for ${owner}/${repo}`
     );
 
     // Get configuration
     const config = await getConfigWithFallback(event);
     if (!config) {
-      eventLogger.warn(
+      logger.warn(
         "No configuration found, skipping localization processing"
       );
       return;
@@ -41,13 +41,13 @@ export async function handlePullRequestEvent(event, action) {
 
     // Check if PR targets monitored branch
     if (!isTargetBranchForConfig(pull_request.base.ref, config)) {
-      eventLogger.info(
+      logger.info(
         `PR targets branch '${pull_request.base.ref}' which is not monitored`
       );
       return;
     }
 
-    eventLogger.info(
+    logger.info(
       `PR targets monitored branch '${pull_request.base.ref}', proceeding with localization`
     );
 
@@ -71,7 +71,7 @@ export async function handlePullRequestEvent(event, action) {
         `Localization complete: ${result.changesProcessed} changes processed`,
         process.env.APP_NAME
       );
-      eventLogger.success(`Localization processing completed successfully`, {
+      logger.success(`Localization processing completed successfully`, {
         changesProcessed: result.changesProcessed,
         localesUpdated: result.localesUpdated,
       });
@@ -83,12 +83,12 @@ export async function handlePullRequestEvent(event, action) {
         `Localization failed: ${result.error}`,
         process.env.APP_NAME
       );
-      eventLogger.error(`Localization processing failed`, result.error);
+      logger.error(`Localization processing failed`, result.error);
     }
 
     timer.end();
   } catch (error) {
-    eventLogger.error(`Error processing PR #${prNumber}`, error);
+    logger.error(`Error processing PR #${prNumber}`, error);
     await setErrorStatus(event, pull_request.head.sha, error);
   }
 }
@@ -102,11 +102,11 @@ export async function handlePushEvent(event) {
   const { owner, repo } = extractRepoInfo(repository);
   const branch = ref.replace("refs/heads/", "");
 
-  const eventLogger = new Logger("PushEvent");
-  const timer = eventLogger.time(`Processing push to ${branch}`);
+  const logger = new Logger("PushEvent");
+  const timer = logger.time(`Processing push to ${branch}`);
 
   try {
-    eventLogger.info(
+    logger.info(
       `Processing push to branch '${branch}' in ${owner}/${repo}`
     );
 
@@ -114,13 +114,13 @@ export async function handlePushEvent(event) {
     const config = await getConfigWithFallback(event);
 
     if (!config || !isTargetBranchForConfig(branch, config)) {
-      eventLogger.info(
+      logger.info(
         `Branch '${branch}' not monitored or no config found, skipping`
       );
       return;
     }
 
-    eventLogger.info(
+    logger.info(
       `Push to monitored branch '${branch}' detected, checking for open PRs`
     );
 
@@ -128,41 +128,41 @@ export async function handlePushEvent(event) {
     const openPRs = await getOpenPullRequests(event, branch);
 
     if (openPRs.length === 0) {
-      eventLogger.info("No open PRs targeting this branch");
+      logger.info("No open PRs targeting this branch");
       return;
     }
 
-    eventLogger.info(
+    logger.info(
       `Found ${openPRs.length} open PR(s) targeting branch '${branch}'`
     );
 
     // Re-process each open PR
     for (const pr of openPRs) {
-      eventLogger.info(
+      logger.info(
         `Re-processing PR #${pr.number} due to base branch changes`
       );
       try {
         const result = await processPullRequest(event, pr, config);
 
         if (result.success) {
-          eventLogger.success(`Re-processed PR #${pr.number} successfully`, {
+          logger.success(`Re-processed PR #${pr.number} successfully`, {
             changesProcessed: result.changesProcessed,
             localesUpdated: result.localesUpdated,
           });
         } else {
-          eventLogger.warn(
+          logger.warn(
             `Re-processing PR #${pr.number} failed`,
             result.error
           );
         }
       } catch (error) {
-        eventLogger.error(`Error re-processing PR #${pr.number}`, error);
+        logger.error(`Error re-processing PR #${pr.number}`, error);
       }
     }
 
     timer.end();
   } catch (error) {
-    eventLogger.error(`Error processing push event`, error);
+    logger.error(`Error processing push event`, error);
   }
 }
 
@@ -170,7 +170,7 @@ export async function handlePushEvent(event) {
  * Main processing function for pull requests
  */
 export async function processPullRequest(event, pullRequest, config) {
-  const logger = new Logger("FunctionalEvents");
+  const logger = new Logger("Events");
   const timer = logger.time("Processing pull request");
 
   try {
@@ -318,7 +318,7 @@ export async function setErrorStatus(event, sha, error) {
       process.env.APP_NAME
     );
   } catch (statusError) {
-    const logger = new Logger("FunctionalEvents");
+    const logger = new Logger("Events");
     logger.error("Failed to set status check", statusError);
   }
 }

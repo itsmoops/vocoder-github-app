@@ -1,4 +1,5 @@
 import { Logger } from "./logger.js";
+import { detectStringChanges } from "./localization.js";
 import { validateConfig } from "./config.js";
 
 /**
@@ -48,10 +49,10 @@ export async function setCommitStatus(
       context,
     });
 
-    const logger = new Logger("FunctionalAPI");
+    const logger = new Logger("API");
     logger.info(`Set status check to ${state}: ${description}`);
   } catch (error) {
-    const logger = new Logger("FunctionalAPI");
+    const logger = new Logger("API");
     logger.error("Failed to set status check", error);
     throw error;
   }
@@ -89,7 +90,7 @@ export async function getBranchHead(event, branchName) {
  * Returns null if no config file exists
  */
 export async function getConfig(event, ref = "main") {
-  const logger = new Logger("FunctionalAPI");
+  const logger = new Logger("API");
 
   try {
     const configContent = await getFileContent(
@@ -145,7 +146,7 @@ export async function getConfigWithFallback(event) {
 }
 
 /**
- * Compare source file content between two commits
+ * Compare source file content between two commits using deep-object-diff
  */
 export async function compareSourceFiles(
   event,
@@ -153,7 +154,7 @@ export async function compareSourceFiles(
   previousSha,
   currentSha
 ) {
-  const logger = new Logger("FunctionalAPI");
+  const logger = new Logger("API");
 
   try {
     const [previousFile, currentFile] = await Promise.all([
@@ -171,11 +172,26 @@ export async function compareSourceFiles(
       return true;
     }
 
-    // Compare content
-    const previousContent = JSON.stringify(previousFile, null, 2);
-    const currentContent = JSON.stringify(currentFile, null, 2);
+    // Use detectStringChanges to compare content with deep-object-diff
+    const changes = detectStringChanges(previousFile, currentFile);
 
-    return previousContent !== currentContent;
+    // Check if there are any actual changes
+    const hasChanges =
+      Object.keys(changes.added).length > 0 ||
+      Object.keys(changes.updated).length > 0 ||
+      Object.keys(changes.deleted).length > 0;
+
+    if (hasChanges) {
+      logger.debug("Source file changes detected", {
+        added: Object.keys(changes.added).length,
+        updated: Object.keys(changes.updated).length,
+        deleted: Object.keys(changes.deleted).length,
+      });
+    } else {
+      logger.debug("No source file changes detected");
+    }
+
+    return hasChanges;
   } catch (error) {
     logger.warn("Error comparing source file content", error);
     return true; // Assume change if we can't compare
