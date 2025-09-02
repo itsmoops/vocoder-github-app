@@ -9,6 +9,12 @@ export class WebhookEvent {
     this.owner = payload?.repository?.owner?.login;
     this.repo = payload?.repository?.name;
     this.payload = payload;
+    this.currentBranch = payload?.ref?.replace("refs/heads/", "") || null;
+    this.defaultBranch = payload?.repository?.default_branch || null;
+    this.baseBranch = payload?.pull_request?.base?.ref || null;
+    this.baseSha = payload?.pull_request?.base?.sha || null;
+    this.headBranch = payload?.pull_request?.head?.ref || null;
+    this.headSha = payload?.pull_request?.head?.sha || null;
   }
 }
 
@@ -29,7 +35,7 @@ export async function shouldProcessWebhook(event) {
     }
 
     const { payload = {} } = event;
-    const { pull_request: pullRequest = {}, commits = [] } = payload;
+    const { pull_request: pullRequest, commits = [] } = payload;
 
     if (pullRequest) {
       return await checkPRSourceFileChanges(event, pullRequest, config);
@@ -55,20 +61,22 @@ export async function shouldProcessWebhook(event) {
 export async function checkPRSourceFileChanges(event, pullRequest, config) {
   const logger = new Logger('FunctionalWebhook');
 
+  const { baseSha, headSha } = event;
+
   try {
     const hasChanged = await compareSourceFiles(
       event,
       config.sourceFile,
-      pullRequest.base.sha,
-      pullRequest.head.sha
+      baseSha,
+      headSha
     );
 
     if (!hasChanged) {
       logger.info(
         `Skipping webhook - no changes to source file ${config.sourceFile}`,
         {
-          baseSha: pullRequest.base.sha,
-          headSha: pullRequest.head.sha,
+          baseSha,
+          headSha,
           sourceFile: config.sourceFile,
         }
       );
@@ -78,8 +86,8 @@ export async function checkPRSourceFileChanges(event, pullRequest, config) {
     logger.info(
       `Processing webhook - source file ${config.sourceFile} has changes`,
       {
-        baseSha: pullRequest.base.sha,
-        headSha: pullRequest.head.sha,
+        baseSha,
+        headSha,
         sourceFile: config.sourceFile,
       }
     );

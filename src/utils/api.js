@@ -127,22 +127,21 @@ export async function getConfig(event, ref = "main") {
  * Get configuration ref with appropriate fallback logic
  */
 export async function getConfigWithFallback(event) {
-  const { payload = {} } = event;
-  const { pull_request: pullRequest = {}, commits = [], ref = "" } = payload;
+  const { baseBranch, currentBranch, defaultBranch, headSha, payload = {} } = event;
+  const { pull_request: pullRequest, commits = [] } = payload;
 
   if (pullRequest) {
-    let config = await getConfig(event, pullRequest.head.sha);
+    let config = await getConfig(event, headSha);
     if (!config) {
-      config = await getConfig(event, pullRequest.base.ref);
+      config = await getConfig(event, baseBranch);
     }
     return config;
-  } else if (commits?.length > 0) {
-    // For push events, get config from the current branch
-    const branch = payload.ref.replace("refs/heads/", "");
-    return await getConfig(event, branch);
+  } else if (currentBranch && commits?.length > 0) {
+    return await getConfig(event, currentBranch);
   }
 
-  return await getConfig(event);
+  // Fallback to default branch
+  return await getConfig(event, defaultBranch);
 }
 
 /**

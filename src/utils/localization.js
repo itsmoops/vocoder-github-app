@@ -108,7 +108,7 @@ export async function commitTranslationsToPR(
 
   try {
     logger.info("Committing translations to PR branch", {
-      branch: pullRequest.head.ref,
+      branch: event.headBranch,
       languages: Object.keys(translations),
     });
 
@@ -116,7 +116,7 @@ export async function commitTranslationsToPR(
     const { data: latestRef } = await event.octokit.rest.git.getRef({
       owner: event.owner,
       repo: event.repo,
-      ref: `heads/${pullRequest.head.ref}`,
+      ref: `heads/${event.headBranch}`,
     });
 
     const latestSha = latestRef.object.sha;
@@ -189,7 +189,7 @@ export async function commitTranslationsToPR(
     await event.octokit.rest.git.updateRef({
       owner: event.owner,
       repo: event.repo,
-      ref: `heads/${pullRequest.head.ref}`,
+      ref: `heads/${event.headBranch}`,
       sha: commit.sha,
       force: true,
     });

@@ -17,9 +17,8 @@ import { isTargetBranchForConfig } from "./webhook.js";
  * Handle pull request events with functional approach
  */
 export async function handlePullRequestEvent(event, action) {
-  const { payload } = event;
-  const { repository, pull_request } = payload;
-  const { owner, repo } = extractRepoInfo(repository);
+  const { owner, repo, payload } = event;
+  const { pull_request } = payload;
   const prNumber = pull_request.number;
 
   const logger = new Logger(`PR:${action}`);
@@ -40,15 +39,15 @@ export async function handlePullRequestEvent(event, action) {
     }
 
     // Check if PR targets monitored branch
-    if (!isTargetBranchForConfig(pull_request.base.ref, config)) {
+    if (!isTargetBranchForConfig(event.baseBranch, config)) {
       logger.info(
-        `PR targets branch '${pull_request.base.ref}' which is not monitored`
+        `PR targets branch '${event.baseBranch}' which is not monitored`
       );
       return;
     }
 
     logger.info(
-      `PR targets monitored branch '${pull_request.base.ref}', proceeding with localization`
+      `PR targets monitored branch '${event.baseBranch}', proceeding with localization`
     );
 
     // Set status check and process
@@ -97,10 +96,8 @@ export async function handlePullRequestEvent(event, action) {
  * Handle push events with functional approach
  */
 export async function handlePushEvent(event) {
-  const { payload } = event;
-  const { repository, ref } = payload;
-  const { owner, repo } = extractRepoInfo(repository);
-  const branch = ref.replace("refs/heads/", "");
+  const { owner, repo, payload } = event;
+  const branch = event.currentBranch;
 
   const logger = new Logger("PushEvent");
   const timer = logger.time(`Processing push to ${branch}`);
@@ -175,8 +172,8 @@ export async function processPullRequest(event, pullRequest, config) {
 
   try {
     logger.info(`Processing PR #${pullRequest.number}`, {
-      baseBranch: pullRequest.base.ref,
-      headBranch: pullRequest.head.ref,
+      baseBranch: event.baseBranch,
+      headBranch: event.headBranch,
       headSha: pullRequest.head.sha,
     });
 
@@ -293,16 +290,6 @@ export async function processPullRequest(event, pullRequest, config) {
       localesUpdated: 0,
     };
   }
-}
-
-/**
- * Extract repository information from payload
- */
-export function extractRepoInfo(repository) {
-  return {
-    owner: repository.owner.login,
-    repo: repository.name,
-  };
 }
 
 /**
