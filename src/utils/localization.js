@@ -59,8 +59,6 @@ export class LocalizationProcessor {
       // Compare source strings to detect changes
       const changes = this.detectStringChanges(baseContent, sourceContent);
 
-      debugger;
-
       if (
         Object.keys(changes.added).length === 0 &&
         Object.keys(changes.updated).length === 0 &&
@@ -160,8 +158,6 @@ export class LocalizationProcessor {
       Object.entries(flattenedCurrentStrings).sort((a, b) => a[0].localeCompare(b[0]))
     );
 
-    debugger;
-
     return detailedDiff(sortedBaseStrings, sortedCurrentStrings);
   }
 
@@ -253,9 +249,9 @@ export class LocalizationProcessor {
         repo: this.repo,
         ref: `heads/${pullRequest.head.ref}`
       });
-      
+
       const latestSha = latestRef.object.sha;
-      
+
       // Get current tree of the PR branch using the latest SHA
       const { data: currentTree } = await octokit.rest.git.getTree({
         owner: this.owner,

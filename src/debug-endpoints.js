@@ -1,4 +1,4 @@
-import { Logger } from './logger.js'
+import { Logger } from './utils/logger.js'
 
 // Helper function to send JSON response
 function sendJsonResponse(res, statusCode, data) {
@@ -11,7 +11,7 @@ export function createHealthCheck() {
     if (req.url === '/health' && req.method === 'GET') {
       const logger = new Logger('HealthCheck')
       logger.info('Health check requested')
-      
+
       sendJsonResponse(res, 200, {
         status: 'healthy',
         timestamp: new Date().toISOString(),
@@ -30,7 +30,7 @@ export function createDebugMiddleware(handlePullRequestEvent) {
     if (req.url === '/debug/test' && req.method === 'POST') {
       const logger = new Logger('DebugEndpoints')
       logger.info('Debug test endpoint hit')
-      
+
       // Create mock pull request data for testing
       const mockPR = {
         number: 123,
@@ -44,18 +44,18 @@ export function createDebugMiddleware(handlePullRequestEvent) {
           sha: 'head-sha-456'
         }
       }
-      
+
       const mockRepository = {
         owner: { login: 'testuser' },
         name: 'test-repo'
       }
-      
+
       const mockPayload = {
         repository: mockRepository,
         pull_request: mockPR,
         action: 'opened'
       }
-      
+
       // Create mock Octokit instance for testing
       const mockOctokit = {
         rest: {
@@ -117,12 +117,12 @@ export function createDebugMiddleware(handlePullRequestEvent) {
           }
         }
       }
-      
+
       // Simulate the event processing
       logger.info('Processing debug event: pull_request.opened')
-      
+
       // Create event handler and call with mock data
-      import('./utils/event-handler.js').then(({ EventHandler }) => {
+      import('./src/utils/event-handler.js').then(({ EventHandler }) => {
         const eventHandler = new EventHandler(mockOctokit, 'TestApp');
         return eventHandler.handlePullRequestEvent(mockPayload, 'opened');
       })
@@ -147,10 +147,10 @@ export function createDebugMiddleware(handlePullRequestEvent) {
             error: error.message
           })
         })
-      
+
       return true
     }
-    
+
     return false
   }
-} 
+}

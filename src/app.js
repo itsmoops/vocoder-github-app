@@ -1,9 +1,9 @@
 import { App, Octokit } from "octokit";
+import { WebhookEvent, shouldProcessWebhook } from "./utils/webhook.js";
 import { createDebugMiddleware, createHealthCheck } from "./debug-endpoints.js";
+import { handlePullRequestEvent, handlePushEvent } from "./utils/events.js";
 
-import { EventHandler } from "./utils/event-handler.js";
-import { Logger } from "./logger.js";
-import { WebhookUtils } from "./utils/webhook-utils.js";
+import { Logger } from "./utils/logger.js";
 import { createNodeMiddleware } from "@octokit/webhooks";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -16,7 +16,12 @@ dotenv.config();
 const logger = new Logger("MainApp");
 
 // Validate required environment variables
-const requiredEnvVars = ["APP_ID", "APP_URL", "PRIVATE_KEY_PATH", "WEBHOOK_SECRET"];
+const requiredEnvVars = [
+  "APP_ID",
+  "APP_URL",
+  "PRIVATE_KEY_PATH",
+  "WEBHOOK_SECRET",
+];
 for (const envVar of requiredEnvVars) {
   if (!process.env[envVar]) {
     logger.error(`Missing required environment variable: ${envVar}`);
@@ -29,7 +34,7 @@ const app = new App({
   appId: process.env.APP_ID,
   privateKey: fs.readFileSync(process.env.PRIVATE_KEY_PATH, "utf8"),
   webhooks: {
-    secret: process.env.WEBHOOK_SECRET
+    secret: process.env.WEBHOOK_SECRET,
   },
   ...(process.env.ENTERPRISE_HOSTNAME && {
     Octokit: Octokit.defaults({
@@ -38,46 +43,28 @@ const app = new App({
   }),
 });
 
-// Configure Octokit logging
-if (process.env.DEBUG === "true") {
-  app.octokit.log.debug = (message, ...args) => {
-    logger.debug(`[Octokit] ${message}`, args.length > 0 ? args : null);
-  };
-  app.octokit.log.info = (message, ...args) => {
-    logger.info(`[Octokit] ${message}`, args.length > 0 ? args : null);
-  };
-  app.octokit.log.warn = (message, ...args) => {
-    logger.warn(`[Octokit] ${message}`, args.length > 0 ? args : null);
-  };
-  app.octokit.log.error = (message, ...args) => {
-    logger.error(`[Octokit] ${message}`, args.length > 0 ? args : null);
-  };
-}
-
 // Log app authentication
 const { data } = await app.octokit.request("/app");
 logger.success(`GitHub App authenticated as '${data.name}'`);
 
-// Initialize utilities
-const webhookUtils = new WebhookUtils(app);
-const eventHandler = new EventHandler(app, process.env.APP_NAME);
-
-// Webhook event handlers
+// Webhook pull request events
 const prEvents = ["opened", "synchronize", "reopened"];
-prEvents.forEach(action => {
+for (const action of prEvents) {
   app.webhooks.on(`pull_request.${action}`, async ({ octokit, payload }) => {
-    if (await webhookUtils.shouldProcessWebhook(payload)) {
-      logger.logWebhook("pull_request", action, payload);
-      await eventHandler.handlePullRequestEvent(payload, action);
+    const event = new WebhookEvent(octokit, payload);
+    if (await shouldProcessWebhook(event)) {
+      logger.info(`Processing pull request ${payload.number} ${action}`);
+      await handlePullRequestEvent(event, action);
     }
   });
-});
+}
 
 // Handle push events
 app.webhooks.on("push", async ({ octokit, payload }) => {
-  if (await webhookUtils.shouldProcessWebhook(payload)) {
-    logger.logWebhook("push", "push", payload);
-    await eventHandler.handlePushEvent(payload);
+  const event = new WebhookEvent(octokit, payload);
+  if (await shouldProcessWebhook(event)) {
+    logger.info(`Processing push to ${payload.ref}`);
+    await handlePushEvent(event);
   }
 });
 
@@ -139,7 +126,10 @@ const server = http.createServer((req, res) => {
   }
 
   // Handle debug endpoints
-  const debugMiddleware = createDebugMiddleware(eventHandler.handlePullRequestEvent.bind(eventHandler));
+  const debugMiddleware = createDebugMiddleware(async (payload, action) => {
+    const event = new WebhookEvent(app.octokit, payload);
+    return await handlePullRequestEvent(event, action);
+  });
   if (debugMiddleware(req, res)) {
     requestHandled = true;
     return;
@@ -158,10 +148,10 @@ function startServer(port) {
       logger.success(
         `Vocoder Localization App listening at http://localhost:${port}${webhookPath}`
       );
-      logger.info(`Debug endpoints:`);
+      logger.info("Debug endpoints:");
       logger.info(`  - Health: http://localhost:${port}/health`);
       logger.info(`  - Test: http://localhost:${port}/debug/test`);
-      logger.info(`Press Ctrl+C to quit`);
+      logger.info("Press Ctrl+C to quit");
     })
     .on("error", (err) => {
       if (err.code === "EADDRINUSE") {

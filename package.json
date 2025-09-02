@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "server": "nodemon --inspect app-2.js",
+    "server": "nodemon --inspect src/app.js",
     "lint": "standard",
     "lint:fix": "standard --fix",
     "lint:eslint": "eslint .",
